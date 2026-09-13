@@ -40,18 +40,11 @@
                 <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="4">4</button>
             </div>
             
-            <div class="flex items-center justify-center gap-3 mb-6 p-3 bg-gray-800 border border-gray-600 rounded-lg shadow-inner">
-                <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="latterBonusDice">
-                <label for="latter-handicap-rule" class="text-white font-bold cursor-pointer select-none">後手ボーナスダイスを適用する</label>
-            </div>
-            <div class="flex items-center justify-center gap-3 mb-6 p-3 bg-gray-800 border border-gray-600 rounded-lg shadow-inner">
-                <input type="checkbox" id="great-power-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="greatPower">
-                <label for="great-power-rule" class="text-white font-bold cursor-pointer select-none">大国ペナルティを適用する (16領土以上)</label>
-            </div>
-            <div class="flex items-center justify-center gap-3 mb-6 p-3 bg-gray-800 border border-gray-600 rounded-lg shadow-inner">
-                <input type="checkbox" id="small-country-rule" class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle" data-rule="smallCountryBonus">
-                <label for="small-country-rule" class="text-white font-bold cursor-pointer select-none">小国ボーナスを適用する (5領土以下)</label>
-            </div>
+            <button id="open-settings-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded mb-6 border border-gray-500">
+                ⚙️ ルール設定
+            </button>
+
+            
         </div>
     </div>
 
@@ -72,6 +65,29 @@
             </div>
         </div>
         <div id="battle-result" class="mt-6 text-2xl font-bold text-yellow-400 h-8"></div>
+    </div>
+</div>
+<div id="settings-modal" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[60] flex items-center justify-center pointer-events-auto">
+    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full">
+        <h2 class="text-2xl font-bold mb-6 text-center text-white">ゲーム設定</h2>
+        
+        <!-- ここにチェックボックスやスライダーを配置 -->
+        <div class="flex items-center justify-between mb-4 p-3 bg-gray-900 rounded">
+            <label for="latter-handicap-rule" class="text-white font-bold cursor-pointer">後手ボーナスダイス</label>
+            <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="latterBonusDice">
+        </div>
+        <div class="flex items-center justify-between mb-4 p-3 bg-gray-900 rounded">
+            <label for="great-power-rule" class="text-white font-bold cursor-pointer">大国ペナルティ (16領土以上)</label>
+            <input type="checkbox" id="great-power-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="greatPower">
+        </div>
+        <div class="flex items-center justify-between mb-6 p-3 bg-gray-900 rounded">
+            <label for="small-country-rule" class="text-white font-bold cursor-pointer">小国ボーナス (5領土以下)</label>
+            <input type="checkbox" id="small-country-rule" class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle" data-rule="smallCountryBonus">
+        </div>
+
+        <button id="close-settings-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded text-lg">
+            設定を閉じる
+        </button>
     </div>
 </div>
 <script type="module" src="./src/main.js"></script>
