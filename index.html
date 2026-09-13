@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Local Rule Dice Wars</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div id="game-container">
+    <div id="canvas-container">
+        <canvas id="gameCanvas"></canvas>
+    </div>
+
+    <div id="ui-layer">
+        <div class="flex justify-between items-start">
+            <div id="turn-info" class="ui-panel text-xl font-bold">Waiting to start...</div>
+            <div class="ui-panel">
+                <h3 class="font-bold mb-2 border-b border-gray-500 pb-1">Players Info</h3>
+                <div id="player-stats" class="text-sm"></div>
+            </div>
+        </div>
+        
+        <div class="flex justify-end p-4 gap-4">
+            <button id="quit-game-btn" class="ui-panel bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-red-500">ゲーム終了</button>
+            <button id="end-turn-btn" class="ui-panel bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-yellow-400">End Turn</button>
+        </div>
+    </div>
+
+    <!-- Start Screen -->
+    <div id="start-screen">
+        <h1 class="text-6xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-lg">DICE WARS</h1>
+        <p class="mb-8 text-gray-300 text-lg">Local Rules Edition</p>
+        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full">
+            <h2 class="text-2xl font-bold mb-6 text-center text-white">Select Number of Players</h2>
+            <div class="flex justify-center gap-4 mb-8">
+                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="2">2</button>
+                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="3">3</button>
+                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="4">4</button>
+            </div>
+            
+            <div class="flex items-center justify-center gap-3 mb-6 p-3 bg-gray-800 border border-gray-600 rounded-lg shadow-inner">
+                <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="latterBonusDice">
+                <label for="latter-handicap-rule" class="text-white font-bold cursor-pointer select-none">後手ボーナスダイスを適用する</label>
+            </div>
+            <div class="flex items-center justify-center gap-3 mb-6 p-3 bg-gray-800 border border-gray-600 rounded-lg shadow-inner">
+                <input type="checkbox" id="great-power-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="greatPower">
+                <label for="great-power-rule" class="text-white font-bold cursor-pointer select-none">大国ペナルティを適用する (16領土以上)</label>
+            </div>
+            <div class="flex items-center justify-center gap-3 mb-6 p-3 bg-gray-800 border border-gray-600 rounded-lg shadow-inner">
+                <input type="checkbox" id="small-country-rule" class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle" data-rule="smallCountryBonus">
+                <label for="small-country-rule" class="text-white font-bold cursor-pointer select-none">小国ボーナスを適用する (5領土以下)</label>
+            </div>
+        </div>
+    </div>
+
+    <!-- Battle Modal -->
+    <div id="battle-modal">
+        <h2 id="battle-title" class="text-3xl font-bold mb-4 text-white">Battle!</h2>
+        <div class="flex justify-between items-center gap-8">
+            <div id="atk-side" class="flex flex-col items-center">
+                <span class="text-xl font-bold mb-2" id="atk-player-name">Attacker</span>
+                <div class="text-5xl font-bold text-red-500" id="atk-score">0</div>
+                <div class="text-sm text-gray-400 mt-2">Dice: <span id="atk-dice-count">0</span></div>
+            </div>
+            <div class="text-3xl font-bold text-yellow-500">VS</div>
+            <div id="def-side" class="flex flex-col items-center">
+                <span class="text-xl font-bold mb-2" id="def-player-name">Defender</span>
+                <div class="text-5xl font-bold text-blue-500" id="def-score">0</div>
+                <div class="text-sm text-gray-400 mt-2">Dice: <span id="def-dice-count">0</span></div>
+            </div>
+        </div>
+        <div id="battle-result" class="mt-6 text-2xl font-bold text-yellow-400 h-8"></div>
+    </div>
+</div>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>

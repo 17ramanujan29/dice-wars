@@ -1,0 +1,19 @@
+export const CONFIG = {
+    hexSize: 16,
+    gridWidth: 40,
+    gridHeight: 30,
+    targetHexesPerTerritory: 18,
+    mapGenerationMaxRetries: 50,
+    maxDicePerTerritory: 8,
+    minDicePerTerritory: 1,
+    initialMaxDice: 6,
+    greatPowermaxDicePerTerritory: 6,
+    greatPowerThreshold: 16,
+    smallCountryThreshold: 5,
+    colors: ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22'],
+    borderColors: ['#c0392b', '#2980b9', '#27ae60', '#f39c12'],
+    clickTolerance: 5,
+    battleAnimationMs: 800,
+    battleResultDisplayMs: 1500,
+    bonusMap: { 2: [0, 4], 3: [0, 3, 6], 4: [0, 2, 4, 6] }
+};
