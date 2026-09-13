@@ -7,6 +7,7 @@ const game = new GameController();
 const renderer = new Renderer('gameCanvas', game);
 
 // UI更新バインディング
+// UI更新バインディング
 game.onStateChange = (state) => {
     if (state.phase === 'gameover') {
         document.getElementById('turn-info').innerHTML = `<span style="color: ${state.winner.color}; font-size: 2rem;">${state.winner.name} Wins!</span><button id="restart-btn" class="ui-panel bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded mt-4">Play Again</button>`;
@@ -20,23 +21,32 @@ game.onStateChange = (state) => {
     
     const statsContainer = document.getElementById('player-stats');
     statsContainer.innerHTML = '';
+    
     state.players.forEach(p => {
         const terrs = state.getOwnedTerritories(p.id);
         if (terrs.length === 0) return;
+        
         const maxConn = state.getMaxConnected(p.id);
+        
+        // 追加: プレイヤーの合計ダイス数を計算
+        const totalDice = terrs.reduce((sum, t) => sum + t.dice, 0);
+        
         const div = document.createElement('div');
         div.className = `flex justify-between items-center gap-4 mb-1 ${p.id === state.currentPlayerIndex ? 'font-bold' : 'opacity-70'}`;
         div.style.color = p.color;
         
         let badges = '';
-        if(state.rules.greatPower && maxConn >= CONFIG.greatPowerThreshold) badges += '<span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded ml-2">大国</span>';
-        if(state.rules.smallCountryBonus && maxConn <= CONFIG.smallCountryThreshold) badges += '<span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded ml-2">小国</span>';
+        if(state.rules.greatPower && maxConn >= CONFIG.greatPowerThreshold) badges += '<span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-red-400">大国</span>';
+        if(state.rules.smallCountryBonus && maxConn <= CONFIG.smallCountryThreshold) badges += '<span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-blue-400">小国</span>';
         
-        div.innerHTML = `<span>${p.name}${badges}</span><span>最大連続: <strong>${maxConn}</strong> <span class="text-xs opacity-80">(${terrs.length}領土)</span></span>`;
+        // 表示内容に「合計ダイス数」を追記
+        div.innerHTML = `
+            <span>${p.name}${badges}</span>
+            <span>最大連続: <strong>${maxConn}</strong> <span class="text-xs opacity-80">(${terrs.length}領土 / 🎲${totalDice}個)</span></span>
+        `;
         statsContainer.appendChild(div);
     });
 };
-
 game.onBattleStart = (src, tgt, atkP, defP) => {
     document.getElementById('atk-player-name').innerText = atkP.name; document.getElementById('atk-player-name').style.color = atkP.color;
     document.getElementById('def-player-name').innerText = defP.name; document.getElementById('def-player-name').style.color = defP.color;
@@ -93,3 +103,27 @@ document.querySelectorAll('.player-btn').forEach(btn => {
 });
 document.getElementById('end-turn-btn').addEventListener('click', () => game.endTurn());
 document.getElementById('quit-game-btn').addEventListener('click', () => { if(confirm('終了しますか？')) location.reload(); });
+
+// モーダルの開閉イベント
+document.getElementById('open-settings-btn').addEventListener('click', () => {
+    document.getElementById('settings-modal').classList.remove('hidden');
+});
+
+document.getElementById('close-settings-btn').addEventListener('click', () => {
+    document.getElementById('settings-modal').classList.add('hidden');
+});
+
+// 既存のスタートボタン処理はそのまま（設定モーダル内のチェック状態を読み取って開始します）
+document.querySelectorAll('.player-btn').forEach(btn => {
+    btn.addEventListener('click', (e) => {
+        const rules = {};
+        // モーダル内に移動した.rule-toggleクラスのチェック状態を取得
+        document.querySelectorAll('.rule-toggle').forEach(chk => rules[chk.dataset.rule] = chk.checked);
+        
+        game.startGame(parseInt(e.target.dataset.players), rules);
+        document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('end-turn-btn').classList.remove('hidden');
+        document.getElementById('quit-game-btn').classList.remove('hidden');
+        renderer.start();
+    });
+});
