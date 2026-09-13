@@ -7,7 +7,7 @@ export const CONFIG = {
     maxDicePerTerritory: 8,
     minDicePerTerritory: 1,
     initialMaxDice: 6,
-    greatPowermaxDicePerTerritory: 6,
+    greatPowermaxDicePerTerritory: 8,
     greatPowerThreshold: 16,
     smallCountryThreshold: 5,
     colors: ['#e74c3c', '#3498db', '#2ecc71', '#f1c40f', '#9b59b6', '#e67e22'],
@@ -15,5 +15,8 @@ export const CONFIG = {
     clickTolerance: 5,
     battleAnimationMs: 800,
     battleResultDisplayMs: 1500,
-    bonusMap: { 2: [0, 4], 3: [0, 3, 6], 4: [0, 2, 4, 6] }
+    bonusMap: { 2: [0, 4], 3: [0, 3, 6], 4: [0, 2, 4, 6] },
+    selectedHighlight: 'rgba(255, 255, 255, 0)',
+    targetHighlight: 'rgba(200, 200, 200, 0.5)',
+    neutralColor: '#95a5a6', 
 };

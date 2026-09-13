@@ -145,7 +145,8 @@ export class GameController {
         const maxConnected = this.getMaxConnected(pId);
         let count = Math.ceil(maxConnected * (2 / 3));
 
-        if (this.rules.smallCountryBonus && maxConnected <= this.rules.smallCountryThreshold) count = 4;
+        if (this.rules.smallCountryBonus && maxConnected <= this.rules.smallCountryThreshold) count = Math.ceil(2/3*this.rules.smallCountryThreshold);
+        if (this.rules.greatPower && maxConnected >=this.rules.greatPowerThreshold) count = Math.ceil(2/3*this.rules.greatPowerThreshold);
         let maxDice = (this.rules.greatPower && maxConnected >= this.rules.greatPowerThreshold) ? CONFIG.greatPowermaxDicePerTerritory : CONFIG.maxDicePerTerritory;
         
         while (count > 0) {
