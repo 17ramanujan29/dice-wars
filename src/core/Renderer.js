@@ -143,7 +143,7 @@ export class Renderer {
         .forEach(t => {
             const isSelected = (t.id === this.game.selectedTerritoryId);
             this.ctx.strokeStyle = isSelected ? '#ffffff' : '#323232';
-            this.ctx.lineWidth = isSelected ? 5 : 4;
+            this.ctx.lineWidth = isSelected ? 4 : 4;
 
             t.hexes.forEach(h => {
                 const center = getHexCenter(h.c, h.r, CONFIG.hexSize);
