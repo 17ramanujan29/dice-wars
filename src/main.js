@@ -87,11 +87,22 @@ const onUp = (e) => {
     if(game.phase !== 'playing') return;
     const pos = e.changedTouches ? {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY} : getPos(e);
     if (Math.hypot(pos.x - dragStart.x, pos.y - dragStart.y) < CONFIG.clickTolerance) {
+        /*
         const hexCoords = pixelToHex(pos.x - renderer.camera.x, pos.y - renderer.camera.y, CONFIG.hexSize);
         if(hexCoords.col >= 0 && hexCoords.col < CONFIG.gridWidth && hexCoords.row >= 0 && hexCoords.row < CONFIG.gridHeight) {
             const hex = game.hexGrid[hexCoords.col][hexCoords.row];
             hex && hex.active ? game.handleTerritoryClick(hex.territoryId) : (game.selectedTerritoryId = null);
+        }*/
+
+        let Y_SCALE = 0.75;
+        let localX = pos.x - renderer.camera.x;
+        let localY = (pos.y - renderer.camera.y) / Y_SCALE; // 傾いたY軸座標を補正
+        let t_hex = pixelToHex(localX, localY, CONFIG.hexSize);
+        if (t_hex.col >= 0 && t_hex.col < CONFIG.gridWidth && t_hex.row >= 0 && t_hex.row < CONFIG.gridHeight) {
+            let e_hex = game.hexGrid[t_hex.col][t_hex.row];
+            e_hex && e_hex.active ? game.handleTerritoryClick(e_hex.territoryId) : game.selectedTerritoryId = null;
         }
+
     }
 };
 
