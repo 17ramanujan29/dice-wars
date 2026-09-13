@@ -1,0 +1,12 @@
+{
+  "name": "dicewars-refactored",
+  "version": "1.0.0",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "devDependencies": {
+    "vite": "^8.3.0",
+    "vite-plugin-singlefile": "^0.13.5"
+  }
+}
