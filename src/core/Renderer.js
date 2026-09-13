@@ -45,6 +45,39 @@ export class Renderer {
         this.camera.y = (this.canvas.height - pixelH) / 2 + 20;
     }
 
+    
+
+    fitMapToScreen() {
+    // 画面内の各方向の余白（マージン）を設定
+    let leftMargin = 20;     // 左端はUIがないので少しだけ空ける
+    let rightMargin = 240;   // 右端はPlayers Infoなどを避けるために広く空ける
+    let topMargin = 40;      // 上端もUIがないので少しだけ空ける
+    let bottomMargin = 120;  // 下端はボタン類を避けるために空ける
+
+    // マップを最大限広げられる「描画可能領域」を計算
+    let availableWidth = this.canvas.width - leftMargin - rightMargin;
+    let availableHeight = this.canvas.height - topMargin - bottomMargin;
+    
+    // 画面が極端に狭い場合のフェイルセーフ
+    if (availableWidth < 100) availableWidth = 100;
+    if (availableHeight < 100) availableHeight = 100;
+
+    // グリッド全体の幅と高さの比率から、最適なHexサイズを算出
+    let widthScale = availableWidth / (CONFIG.gridWidth * 1.5 + 0.5);
+    let heightScale = availableHeight / (CONFIG.gridHeight * Math.sqrt(3));
+    CONFIG.hexSize = Math.min(widthScale, heightScale); // 画面内に収まるように小さい方を採用
+    
+    // 決定したHexサイズを使って、実際のマップの描画サイズを計算
+    let metrics = getHexMetrics(CONFIG.hexSize);
+    let mapWidth = CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
+    let mapHeight = CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5;
+    
+    // 指定した余白の範囲内で、マップが中央にくるようにカメラ位置を調整
+    this.camera.x = leftMargin + (availableWidth - mapWidth) / 2;
+    this.camera.y = topMargin + (availableHeight - mapHeight) / 2;
+}
+
+
     render() {
         if (this.game.phase === 'start') return;
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);

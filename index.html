@@ -14,15 +14,22 @@
     </div>
 
     <div id="ui-layer">
-        <div class="flex justify-between items-start">
-            <div id="turn-info" class="ui-panel text-xl font-bold">Waiting to start...</div>
-            <div class="ui-panel">
-                <h3 class="font-bold mb-2 border-b border-gray-500 pb-1">Players Info</h3>
-                <div id="player-stats" class="text-sm"></div>
+        <!-- justify-between を justify-end に変更し、右側に寄せる -->
+        <div class="flex justify-end items-start">
+            <!-- flex-col で縦並びにし、items-end で右端を揃える -->
+            <div class="flex flex-col items-end">
+                <!-- margin をインラインスタイルで上書きして隙間を調整 -->
+                <div id="turn-info" class="ui-panel text-xl font-bold min-w-[200px] text-center" style="margin-bottom: 0.25rem;">Waiting to start...</div>
+                
+                <div class="ui-panel min-w-[200px]" style="margin-top: 0.25rem;">
+                    <h3 class="font-bold mb-2 border-b border-gray-500 pb-1">Players Info</h3>
+                    <div id="player-stats" class="text-sm"></div>
+                </div>
             </div>
         </div>
         
         <div class="flex justify-end p-4 gap-4">
+            <button id="in-game-settings-btn" class="ui-panel bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-gray-500">設定確認</button>
             <button id="quit-game-btn" class="ui-panel bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-red-500">ゲーム終了</button>
             <button id="end-turn-btn" class="ui-panel bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-yellow-400">End Turn</button>
         </div>
@@ -74,20 +81,45 @@
         <!-- ここにチェックボックスやスライダーを配置 -->
         <div class="flex items-center justify-between mb-4 p-3 bg-gray-900 rounded">
             <label for="latter-handicap-rule" class="text-white font-bold cursor-pointer">後手ボーナスダイス</label>
-            <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="latterBonusDice">
+            <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="latterBonusDice">
         </div>
-        <div class="flex items-center justify-between mb-4 p-3 bg-gray-900 rounded">
-            <label for="great-power-rule" class="text-white font-bold cursor-pointer">大国ペナルティ (16領土以上)</label>
-            <input type="checkbox" id="great-power-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle" data-rule="greatPower">
+        <!-- 大国ペナルティの設定項目 -->
+        <div class="flex flex-col mb-4 p-3 bg-gray-900 rounded">
+            <div class="flex items-center justify-between mb-2">
+                <label for="great-power-rule" class="text-white font-bold cursor-pointer">大国ペナルティ</label>
+                <input type="checkbox" id="great-power-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="greatPower">
+            </div>
+            <div class="flex items-center justify-between text-sm pl-2">
+                <span class="text-gray-400">適用する領土数（閾値）:</span>
+                <input type="number" id="great-power-threshold" class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed" value="16" min="10" max="25">
+            </div>
         </div>
-        <div class="flex items-center justify-between mb-6 p-3 bg-gray-900 rounded">
-            <label for="small-country-rule" class="text-white font-bold cursor-pointer">小国ボーナス (5領土以下)</label>
-            <input type="checkbox" id="small-country-rule" class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle" data-rule="smallCountryBonus">
+
+        <!-- 小国ボーナスの設定項目 -->
+        <div class="flex flex-col mb-6 p-3 bg-gray-900 rounded">
+            <div class="flex items-center justify-between mb-2">
+                <label for="small-country-rule" class="text-white font-bold cursor-pointer">小国ボーナス</label>
+                <input type="checkbox" id="small-country-rule" class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="smallCountryBonus">
+            </div>
+            <div class="flex items-center justify-between text-sm pl-2">
+                <span class="text-gray-400">適用する領土数（閾値）:</span>
+                <input type="number" id="small-country-threshold" class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed" value="5" min="1" max="9">
+            </div>
         </div>
 
         <button id="close-settings-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded text-lg">
             設定を閉じる
         </button>
+    </div>
+</div>
+<!-- ゲーム終了確認モーダル -->
+<div id="quit-modal" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[70] flex items-center justify-center pointer-events-auto">
+    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 max-w-sm w-full text-center">
+        <h3 class="text-xl font-bold mb-4 text-white">ゲームを終了しますか？</h3>
+        <div class="flex justify-center gap-4">
+            <button id="confirm-quit-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded">はい</button>
+            <button id="cancel-quit-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded">いいえ</button>
+        </div>
     </div>
 </div>
 <script type="module" src="./src/main.js"></script>

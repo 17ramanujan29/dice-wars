@@ -105,7 +105,7 @@ export class GameController {
             target.owner = source.owner;
             target.dice = source.dice - 1;
             source.dice = 1;
-            if (this.rules.greatPower && this.getMaxConnected(source.owner) >= CONFIG.greatPowerThreshold) {
+            if (this.rules.greatPower && this.getMaxConnected(source.owner) >= this.rules.greatPowerThreshold) {
                 this.getOwnedTerritories(source.owner).forEach(t => { if(t.dice > CONFIG.greatPowermaxDicePerTerritory) t.dice = CONFIG.greatPowermaxDicePerTerritory; });
             }
         } else if (atkRoll === defRoll) {
@@ -145,8 +145,8 @@ export class GameController {
         const maxConnected = this.getMaxConnected(pId);
         let count = Math.ceil(maxConnected * (2 / 3));
 
-        if (this.rules.smallCountryBonus && maxConnected <= CONFIG.smallCountryThreshold) count = 4;
-        let maxDice = (this.rules.greatPower && maxConnected >= CONFIG.greatPowerThreshold) ? CONFIG.greatPowermaxDicePerTerritory : CONFIG.maxDicePerTerritory;
+        if (this.rules.smallCountryBonus && maxConnected <= this.rules.smallCountryThreshold) count = 4;
+        let maxDice = (this.rules.greatPower && maxConnected >= this.rules.greatPowerThreshold) ? CONFIG.greatPowermaxDicePerTerritory : CONFIG.maxDicePerTerritory;
         
         while (count > 0) {
             let valid = owned.filter(t => t.dice < maxDice);

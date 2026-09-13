@@ -27,6 +27,10 @@ game.onStateChange = (state) => {
         if (terrs.length === 0) return;
         
         const maxConn = state.getMaxConnected(p.id);
+
+        // --- 開発確認用ログ ---
+        // game.onStateChange 内に追加
+        console.log("現在のルール設定:", game.rules);
         
         // 追加: プレイヤーの合計ダイス数を計算
         const totalDice = terrs.reduce((sum, t) => sum + t.dice, 0);
@@ -36,9 +40,14 @@ game.onStateChange = (state) => {
         div.style.color = p.color;
         
         let badges = '';
-        if(state.rules.greatPower && maxConn >= CONFIG.greatPowerThreshold) badges += '<span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-red-400">大国</span>';
-        if(state.rules.smallCountryBonus && maxConn <= CONFIG.smallCountryThreshold) badges += '<span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-blue-400">小国</span>';
-        
+        // 変更: state.rules ではなく game.rules を参照する
+        if(game.rules.greatPower && maxConn >= game.rules.greatPowerThreshold) {
+            badges += `<span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-red-400">大国 (≧${game.rules.greatPowerThreshold})</span>`;
+        }
+        if(game.rules.smallCountryBonus && maxConn <= game.rules.smallCountryThreshold) {
+            badges += `<span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-blue-400">小国 (≦${game.rules.smallCountryThreshold})</span>`;
+        }
+
         // 表示内容に「合計ダイス数」を追記
         div.innerHTML = `
             <span>${p.name}${badges}</span>
@@ -94,36 +103,91 @@ document.querySelectorAll('.player-btn').forEach(btn => {
     btn.addEventListener('click', (e) => {
         const rules = {};
         document.querySelectorAll('.rule-toggle').forEach(chk => rules[chk.dataset.rule] = chk.checked);
+        
+        // 追加: 数値入力欄から閾値を取得してルールに含める
+        rules.greatPowerThreshold = parseInt(document.getElementById('great-power-threshold').value, 10);
+        rules.smallCountryThreshold = parseInt(document.getElementById('small-country-threshold').value, 10);
+        
         game.startGame(parseInt(e.target.dataset.players), rules);
         document.getElementById('start-screen').style.display = 'none';
+        document.getElementById('settings-modal').classList.add('hidden'); // 設定を開いたまま開始した場合に閉じる
         document.getElementById('end-turn-btn').classList.remove('hidden');
         document.getElementById('quit-game-btn').classList.remove('hidden');
+
+        document.getElementById(`in-game-settings-btn`).classList.remove(`hidden`);
+
         renderer.start();
     });
 });
-document.getElementById('end-turn-btn').addEventListener('click', () => game.endTurn());
-document.getElementById('quit-game-btn').addEventListener('click', () => { if(confirm('終了しますか？')) location.reload(); });
 
+document.getElementById('end-turn-btn').addEventListener('click', () => game.endTurn());
+// 「ゲーム終了」ボタンを押したときに確認モーダルを表示
+document.getElementById(`quit-game-btn`).addEventListener(`click`, () => {
+    document.getElementById(`quit-modal`).classList.remove(`hidden`);
+});
+
+// モーダル内の「はい」ボタンを押したらリロード（ゲーム終了）
+document.getElementById(`confirm-quit-btn`).addEventListener(`click`, () => {
+    location.reload();
+});
+
+// モーダル内の「いいえ」ボタンを押したらモーダルを閉じる
+document.getElementById(`cancel-quit-btn`).addEventListener(`click`, () => {
+    document.getElementById(`quit-modal`).classList.add(`hidden`);
+});
 // モーダルの開閉イベント
-document.getElementById('open-settings-btn').addEventListener('click', () => {
-    document.getElementById('settings-modal').classList.remove('hidden');
+document.getElementById(`open-settings-btn`).addEventListener(`click`, () => {
+    // 操作不可クラスを削除して編集可能にする
+    document.querySelectorAll('.rule-toggle, #great-power-threshold, #small-country-threshold').forEach(el => {
+        el.classList.remove('pointer-events-none');
+    });
+    
+    // チェックボックス自体の disabled を解除
+    document.querySelectorAll('.rule-toggle').forEach(el => el.disabled = false);
+    
+    // 数値入力欄はチェックボックスのON/OFFに合わせて disabled を切り替え
+    document.getElementById('great-power-threshold').disabled = !document.getElementById('great-power-rule').checked;
+    document.getElementById('small-country-threshold').disabled = !document.getElementById('small-country-rule').checked;
+    
+    document.getElementById(`settings-modal`).classList.remove(`hidden`);
 });
 
 document.getElementById('close-settings-btn').addEventListener('click', () => {
     document.getElementById('settings-modal').classList.add('hidden');
 });
 
-// 既存のスタートボタン処理はそのまま（設定モーダル内のチェック状態を読み取って開始します）
-document.querySelectorAll('.player-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        const rules = {};
-        // モーダル内に移動した.rule-toggleクラスのチェック状態を取得
-        document.querySelectorAll('.rule-toggle').forEach(chk => rules[chk.dataset.rule] = chk.checked);
-        
-        game.startGame(parseInt(e.target.dataset.players), rules);
-        document.getElementById('start-screen').style.display = 'none';
-        document.getElementById('end-turn-btn').classList.remove('hidden');
-        document.getElementById('quit-game-btn').classList.remove('hidden');
-        renderer.start();
+document.getElementById(`in-game-settings-btn`).addEventListener(`click`, () => {
+    // 全入力欄の disabled を解除（通常の明るさに保持）
+    document.querySelectorAll('.rule-toggle, #great-power-threshold, #small-country-threshold').forEach(el => {
+        el.disabled = false;
+        el.classList.add('pointer-events-none'); // クリック・入力を不可にする
     });
+    
+    document.getElementById(`settings-modal`).classList.remove(`hidden`);
 });
+
+
+
+const greatPowerRuleCb = document.getElementById(`great-power-rule`);
+const greatPowerThresholdInput = document.getElementById(`great-power-threshold`);
+greatPowerRuleCb.addEventListener(`change`,e=>{
+    greatPowerThresholdInput.disabled=!e.target.checked;
+    greatPowerThresholdInput.parentElement.style.display=e.target.checked?'flex':'none';
+});
+const smallCountryRuleCb = document.getElementById(`small-country-rule`);
+const smallCountryThresholdInput = document.getElementById(`small-country-threshold`);
+smallCountryRuleCb.addEventListener(`change`,e=>{
+    smallCountryThresholdInput.disabled=!e.target.checked;
+    smallCountryThresholdInput.parentElement.style.display=e.target.checked?'flex':'none';
+});
+
+// 初期状態の表示を反映
+greatPowerThresholdInput.disabled=!greatPowerRuleCb.checked;
+greatPowerThresholdInput.parentElement.style.display=greatPowerRuleCb.checked?'flex':'none';
+smallCountryThresholdInput.disabled=!smallCountryRuleCb.checked;
+smallCountryThresholdInput.parentElement.style.display=smallCountryRuleCb.checked?'flex':'none';
+
+
+// ページ読み込み時に初期状態を反映させておく
+greatPowerThresholdInput.disabled = !greatPowerRuleCb.checked;
+smallCountryThresholdInput.disabled = !smallCountryRuleCb.checked;
