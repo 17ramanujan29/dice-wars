@@ -42,10 +42,10 @@ game.onStateChange = (state) => {
         let badges = '';
         // 変更: state.rules ではなく game.rules を参照する
         if(game.rules.greatPower && maxConn >= game.rules.greatPowerThreshold) {
-            badges += `<span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-red-400">大国 (≧${game.rules.greatPowerThreshold})</span>`;
+            badges += `<span class="bg-red-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-red-400">大国</span>`;
         }
         if(game.rules.smallCountryBonus && maxConn <= game.rules.smallCountryThreshold) {
-            badges += `<span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-blue-400">小国 (≦${game.rules.smallCountryThreshold})</span>`;
+            badges += `<span class="bg-blue-600 text-white text-xs px-2 py-0.5 rounded ml-2 shadow-sm border border-blue-400">小国</span>`;
         }
 
         // 表示内容に「合計ダイス数」を追記
@@ -77,16 +77,35 @@ game.onBattleEnd = (atkScore, defScore, type) => {
 };
 
 // 入力イベント設定
-let dragStart = {x: 0, y: 0};
+let startPos = {x: 0, y: 0};
+let lastTouchTime = 0;
+
 const canvas = document.getElementById('gameCanvas');
 const getPos = (e) => ({ x: (e.touches ? e.touches[0].clientX : e.clientX), y: (e.touches ? e.touches[0].clientY : e.clientY) });
 
-const onDown = (e) => { if(e.type==='touchstart') e.preventDefault(); if(game.phase === 'playing') dragStart = getPos(e); };
-const onUp = (e) => {
-    if(e.type==='touchend') e.preventDefault();
-    if(game.phase !== 'playing') return;
+const handlePointerDown = e => {
+    // タッチ直後の擬似マウスイベントを無視 (500ms以内)
+    if (e.type === 'touchstart') {
+        lastTouchTime = Date.now();
+    } else if (e.type === 'mousedown') {
+        if (Date.now() - lastTouchTime < 500) return; 
+    }
+    if (game.phase === 'playing') {
+        startPos = getPos(e);
+    }
+};
+const handlePointerUp = (e) => {
+    // タッチ直後の擬似マウスイベントを無視
+    if (e.type === 'mouseup') {
+        if (Date.now() - lastTouchTime < 500) return;
+    } else if (e.type === 'touchend') {
+        lastTouchTime = Date.now();
+    }
+    
+    if (game.phase !== 'playing') return;
+
     const pos = e.changedTouches ? {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY} : getPos(e);
-    if (Math.hypot(pos.x - dragStart.x, pos.y - dragStart.y) < CONFIG.clickTolerance) {
+    if (Math.hypot(pos.x - startPos.x, pos.y - startPos.y) < CONFIG.clickTolerance) {
         /*
         const hexCoords = pixelToHex(pos.x - renderer.camera.x, pos.y - renderer.camera.y, CONFIG.hexSize);
         if(hexCoords.col >= 0 && hexCoords.col < CONFIG.gridWidth && hexCoords.row >= 0 && hexCoords.row < CONFIG.gridHeight) {
@@ -106,8 +125,10 @@ const onUp = (e) => {
     }
 };
 
-canvas.addEventListener('mousedown', onDown); window.addEventListener('mouseup', onUp);
-canvas.addEventListener('touchstart', onDown, {passive: false}); window.addEventListener('touchend', onUp, {passive: false});
+canvas.addEventListener('mousedown', handlePointerDown); 
+window.addEventListener('mouseup', handlePointerUp);
+canvas.addEventListener('touchstart', handlePointerDown, {passive: false}); 
+window.addEventListener('touchend', handlePointerUp, {passive: false});
 
 // ボタンイベント設定
 document.querySelectorAll('.player-btn').forEach(btn => {
@@ -190,8 +211,3 @@ greatPowerThresholdInput.disabled=!greatPowerRuleCb.checked;
 greatPowerThresholdInput.parentElement.style.display=greatPowerRuleCb.checked?'flex':'none';
 smallCountryThresholdInput.disabled=!smallCountryRuleCb.checked;
 smallCountryThresholdInput.parentElement.style.display=smallCountryRuleCb.checked?'flex':'none';
-
-
-// ページ読み込み時に初期状態を反映させておく
-greatPowerThresholdInput.disabled = !greatPowerRuleCb.checked;
-smallCountryThresholdInput.disabled = !smallCountryRuleCb.checked;
