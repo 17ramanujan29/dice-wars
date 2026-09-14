@@ -19,4 +19,5 @@ export const CONFIG = {
     selectedHighlight: 'rgba(255, 255, 255, 0)',
     targetHighlight: 'rgba(150, 150, 150, 0.5)',
     neutralColor: '#95a5a6', 
+    yScale : 0.8,
 };
