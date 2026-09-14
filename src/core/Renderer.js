@@ -202,119 +202,186 @@ export class Renderer {
             });
         });
     }
+    
 /*
     drawDiceStack(x, y, count, color) {
-        const diceSize = Math.max(CONFIG.hexSize * 0.90, 6);
-        const stackOffset = Math.max(CONFIG.hexSize * 0.35, 4);
-        const startY = y + (count * stackOffset) / 2 - diceSize;
+        let width = Math.max(CONFIG.hexSize * .68, 6);
+        let height = width * .75;
+        let sideH = width * 1.05;
+        let stepY = sideH * 1;
+
+        let isDouble = count >= 5; // 5個以上なら2列にするフラグ
+        let xOffset = width * 1.1; // 左右にずらす幅
 
         for (let i = 0; i < count; i++) {
-            const dy = startY - (i * stackOffset);
-            this.ctx.fillStyle = this.shadeColor(color, -20);
-            this.ctx.fillRect(x - diceSize, dy, diceSize * 2, diceSize * 2);
-            this.ctx.fillStyle = this.shadeColor(color, 20);
-            this.ctx.beginPath();
-            this.ctx.moveTo(x - diceSize, dy); this.ctx.lineTo(x, dy - diceSize/2);
-            this.ctx.lineTo(x + diceSize, dy); this.ctx.lineTo(x, dy + diceSize/2);
-            this.ctx.fill();
+            // 何段目に積むかを計算（2列の場合はインデックスを半分にする）
+            let stackIdx = isDouble ? Math.floor(i / 2) : i;
+            let cy = y - stackIdx * stepY;
             
-            this.ctx.fillStyle = '#fff';
-            this.ctx.beginPath(); this.ctx.arc(x, dy + diceSize, Math.max(diceSize*0.15, 1), 0, Math.PI*2); this.ctx.fill();
-            if(i === count - 1) { this.ctx.beginPath(); this.ctx.arc(x, dy, Math.max(diceSize*0.15, 1), 0, Math.PI*2); this.ctx.fill(); }
-            this.ctx.strokeStyle = 'rgba(0,0,0,0.5)'; this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(x - diceSize, dy, diceSize * 2, diceSize * 2);
-        }
-        this.ctx.fillStyle = '#fff'; this.ctx.font = `bold ${Math.max(Math.floor(diceSize * 1.1), 10)}px sans-serif`;
-        this.ctx.textAlign = 'center'; this.ctx.textBaseline = 'middle';
-        this.ctx.shadowColor = 'black'; this.ctx.shadowBlur = 4;
-        this.ctx.fillText(count, x, startY - ((count - 1) * stackOffset) - (diceSize * 0.8));
-        this.ctx.shadowBlur = 0;
-    }
-*/
+            // 2列の場合は偶数・奇数でX座標を左右にずらす
+            let tx = isDouble ? (x + (i % 2 === 0 ? -xOffset : xOffset)) : x;
 
-    drawDiceStack(x,y,count,color){
-        let w=Math.max(CONFIG.hexSize*0.75, 6);   // サイコロの幅の半分
-        let h=w*0.75;                         // アイソメトリックひし形の高さの半分
-        let sideH=w*1.05;                    // サイコロの立体の高さ
-        let stepY=sideH*1.0;                // 上に積む時の高さオフセット
-
-        for(let i=0; i<count; i++){
-            let cy = y - i * stepY;
             let topColor = this.shadeColor(color, 30);
             let leftColor = this.shadeColor(color, -5);
             let rightColor = this.shadeColor(color, -25);
-
-            this.ctx.lineWidth = 1;
-            this.ctx.lineJoin = 'round';
-            this.ctx.strokeStyle = 'rgba(0,0,0,0.4)';
-
-            // 面1: 上面 (Top Face)
+            this.ctx.lineWidth = 1, this.ctx.lineJoin = `round`, this.ctx.strokeStyle = `rgba(0,0,0,0.4)`;
+            
             this.ctx.fillStyle = topColor;
             this.ctx.beginPath();
-            this.ctx.moveTo(x, cy - sideH - h);
-            this.ctx.lineTo(x + w, cy - sideH);
-            this.ctx.lineTo(x, cy - sideH + h);
-            this.ctx.lineTo(x - w, cy - sideH);
+            this.ctx.moveTo(tx, cy - sideH - height);
+            this.ctx.lineTo(tx + width, cy - sideH);
+            this.ctx.lineTo(tx, cy - sideH + height);
+            this.ctx.lineTo(tx - width, cy - sideH);
             this.ctx.closePath();
-            this.ctx.fill(); this.ctx.stroke();
+            this.ctx.fill();
+            this.ctx.stroke();
 
-            // 面2: 左側面 (Left Face)
             this.ctx.fillStyle = leftColor;
             this.ctx.beginPath();
-            this.ctx.moveTo(x - w, cy - sideH);
-            this.ctx.lineTo(x, cy - sideH + h);
-            this.ctx.lineTo(x, cy + h);
-            this.ctx.lineTo(x - w, cy);
+            this.ctx.moveTo(tx - width, cy - sideH);
+            this.ctx.lineTo(tx, cy - sideH + height);
+            this.ctx.lineTo(tx, cy + height);
+            this.ctx.lineTo(tx - width, cy);
             this.ctx.closePath();
-            this.ctx.fill(); this.ctx.stroke();
-
-            // 面3: 右側面 (Right Face)
+            this.ctx.fill();
+            this.ctx.stroke();
+            
             this.ctx.fillStyle = rightColor;
             this.ctx.beginPath();
-            this.ctx.moveTo(x, cy - sideH + h);
-            this.ctx.lineTo(x + w, cy - sideH);
-            this.ctx.lineTo(x + w, cy);
-            this.ctx.lineTo(x, cy + h);
+            this.ctx.moveTo(tx, cy - sideH + height);
+            this.ctx.lineTo(tx + width, cy - sideH);
+            this.ctx.lineTo(tx + width, cy);
+            this.ctx.lineTo(tx, cy + height);
             this.ctx.closePath();
-            this.ctx.fill(); this.ctx.stroke();
-
-            // サイコロの目（上面にドットを描画）
-            let pipNum = (i === count - 1) ? Math.min(count, 6) : ((i % 6) + 1);
+            this.ctx.fill();
+            this.ctx.stroke();
+            
+            let pipNum = i === count - 1 ? Math.min(count, 6) : i % 6 + 1;
             let topCy = cy - sideH;
             let dots = [];
-            if (pipNum === 1) dots = [[0, 0]];
-            else if (pipNum === 2) dots = [[-0.4, -0.4], [0.4, 0.4]];
-            else if (pipNum === 3) dots = [[-0.4, -0.4], [0, 0], [0.4, 0.4]];
-            else if (pipNum === 4) dots = [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]];
-            else if (pipNum === 5) dots = [[-0.4, -0.4], [0.4, -0.4], [0, 0], [-0.4, 0.4], [0.4, 0.4]];
-            else if (pipNum === 6) dots = [[-0.4, -0.4], [-0.4, 0], [-0.4, 0.4], [0.4, -0.4], [0.4, 0], [0.4, 0.4]];
-
-            let pipRadius = (pipNum === 1) ? w * 0.22 : w * 0.12;
-            let dotColor = (pipNum === 1) ? '#ff3333' : '#ffffff'; // 1の目は赤ドット
-
-            dots.forEach(d => {
-                let px = x + (d[0] - d[1]) * (w * 0.45);
-                let py = topCy + (d[0] + d[1]) * (h * 0.45);
+            pipNum === 1 ? dots = [[0, 0]] : pipNum === 2 ? dots = [[-.4, -.4], [.4, .4]] : pipNum === 3 ? dots = [[-.4, -.4], [0, 0], [.4, .4]] : pipNum === 4 ? dots = [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]] : pipNum === 5 ? dots = [[-.4, -.4], [.4, -.4], [0, 0], [-.4, .4], [.4, .4]] : pipNum === 6 && (dots = [[-.4, -.4], [-.4, 0], [-.4, .4], [.4, -.4], [.4, 0], [.4, .4]]);
+            
+            let pipRadius = pipNum === 1 ? width * .22 : width * .12
+            let dotColor = pipNum === 1 ? `#ff3333` : `#ffffff`;
+            dots.forEach(pt => {
+                let n_x = tx + (pt[0] - pt[1]) * (width * .45);
+                let r_y = topCy + (pt[0] + pt[1]) * (dots * .45);
                 this.ctx.save();
-                this.ctx.translate(px, py);
-                this.ctx.scale(1, 0.5); // アイソメトリック傾斜に合わせて楕円化
+                this.ctx.translate(n_x, r_y);
+                this.ctx.scale(1, .5);
                 this.ctx.fillStyle = dotColor;
                 this.ctx.beginPath();
                 this.ctx.arc(0, 0, pipRadius, 0, Math.PI * 2);
                 this.ctx.fill();
+                this.ctx.restore()
+            })
+        }
+        
+        // 上部のテキストの高さも2列の場合に合わせて調整
+        let topStackIdx = isDouble ? Math.floor((count - 1) / 2) : count - 1;
+        let textL = y - topStackIdx * stepY - sideH - height - 4;
+        this.ctx.fillStyle = `#ffffff`, this.ctx.font = `bold ${Math.max(Math.floor(width * 1.3), 11)}px sans-serif`, this.ctx.textAlign = `center`, this.ctx.textBaseline = `bottom`, this.ctx.shadowColor = `black`, this.ctx.shadowBlur = 4, this.ctx.fillText(count, x, textL), this.ctx.shadowBlur = 0
+    }
+*/
+    drawDiceStack(x, y, count, color) {
+        let width = Math.max(CONFIG.hexSize * .68, 6);
+        let height = width * .75;
+        let stepH = width * 1;
+        let stepY = stepH * 1;
+
+        let isDouble = count >= 5;
+        let xOffset = width * 0.5; // 左右のずれ幅
+
+        let startY = y;
+
+        for (let i = 0; i < count; i++) {
+            let tx = x;
+            let stackIdx = i;
+
+            if (isDouble) {
+                if (i < 4) {
+                    // 4個目までは左側の列に積む
+                    tx = x - xOffset;
+                    stackIdx = i;
+                } else {
+                    // 5個目以降は右側の列に積む
+                    tx = x + xOffset;
+                    stackIdx = i - 4;
+                    startY = y+ height;
+                }
+            }
+
+            let cy = startY - stackIdx * stepY;
+            let topColor = this.shadeColor(color, 30); 
+            let leftColor = this.shadeColor(color, -5);
+            let rightColor = this.shadeColor(color, -25);
+            
+            this.ctx.lineWidth = 1;
+            this.ctx.lineJoin = `round`;
+            this.ctx.strokeStyle = `rgba(0,0,0,0.4)`;
+            
+            // ダイス本体の描画
+            this.ctx.fillStyle = topColor;
+            this.ctx.beginPath(); 
+            this.ctx.moveTo(tx, cy - stepH - height); 
+            this.ctx.lineTo(tx + width, cy - stepH); 
+            this.ctx.lineTo(tx, cy - stepH + height); 
+            this.ctx.lineTo(tx - width, cy - stepH); 
+            this.ctx.closePath(); 
+            this.ctx.fill(); 
+            this.ctx.stroke();
+            
+            this.ctx.fillStyle = leftColor;
+            this.ctx.beginPath(); 
+            this.ctx.moveTo(tx - width, cy - stepH); 
+            this.ctx.lineTo(tx, cy - stepH + height); 
+            this.ctx.lineTo(tx, cy + height); 
+            this.ctx.lineTo(tx - width, cy); 
+            this.ctx.closePath(); 
+            this.ctx.fill(); 
+            this.ctx.stroke();
+            
+            this.ctx.fillStyle = rightColor;
+            this.ctx.beginPath(); 
+            this.ctx.moveTo(tx, cy - stepH + height); 
+            this.ctx.lineTo(tx + width, cy - stepH); 
+            this.ctx.lineTo(tx + width, cy); 
+            this.ctx.lineTo(tx, cy + height); 
+            this.ctx.closePath(); 
+            this.ctx.fill(); 
+            this.ctx.stroke();
+            
+            // ダイスの目の描画
+            let pipNum = i === count - 1 ? Math.min(count, 6) : i % 6 + 1;
+            let topCy = cy - stepH;
+            let dots = [];
+            pipNum === 1 ? dots = [[0, 0]] : pipNum === 2 ? dots = [[-.4, -.4], [.4, .4]] : pipNum === 3 ? dots = [[-.4, -.4], [0, 0], [.4, .4]] : pipNum === 4 ? dots = [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]] : pipNum === 5 ? dots = [[-.4, -.4], [.4, -.4], [0, 0], [-.4, .4], [.4, .4]] : pipNum === 6 && (dots = [[-.4, -.4], [-.4, 0], [-.4, .4], [.4, -.4], [.4, 0], [.4, .4]]);
+            
+            let pipRadius = pipNum === 1 ? width * .22 : width * .12;
+            let dotColor = pipNum === 1 ? `#000000` : `#000000`;
+            dots.forEach(pt => {
+                let n_x = tx + (pt[0] - pt[1]) * (width * .45), r_y = topCy + (pt[0] + pt[1]) * (height * .45);
+                this.ctx.save(); 
+                this.ctx.translate(n_x, r_y); 
+                this.ctx.scale(1, .5); 
+                this.ctx.fillStyle = dotColor; 
+                this.ctx.beginPath(); 
+                this.ctx.arc(0, 0, pipRadius, 0, Math.PI * 2); 
+                this.ctx.fill(); 
                 this.ctx.restore();
             });
         }
-
-        // サイコロの一番上に合計数をわかりやすく文字で表示
-        let topY = y - (count - 1) * stepY - sideH - h - 4;
-        this.ctx.fillStyle = `#ffffff`;
-        this.ctx.font = `bold ${Math.max(Math.floor(w * 1.3), 11)}px sans-serif`;
-        this.ctx.textAlign = `center`;
-        this.ctx.textBaseline = `bottom`;
-        this.ctx.shadowColor = `black`;
-        this.ctx.shadowBlur = 4;
-        this.ctx.fillText(count, x, topY);
+        
+        // 合計数のテキスト位置を、一番高い列に合わせて調整
+        let maxStackIdx = isDouble ? Math.max(3, count - 5) : count - 1;
+        let textL = startY - maxStackIdx * stepY - stepH - height - 4;
+        this.ctx.fillStyle = `#ffffff`; 
+        this.ctx.font = `bold ${Math.max(Math.floor(width * 1.3), 11)}px sans-serif`; 
+        this.ctx.textAlign = `center`; 
+        this.ctx.textBaseline = `bottom`; 
+        this.ctx.shadowColor = `black`; 
+        this.ctx.shadowBlur = 4; 
+        this.ctx.fillText(count, x, textL); 
         this.ctx.shadowBlur = 0;
     }
 
