@@ -87,11 +87,22 @@ const onUp = (e) => {
     if(game.phase !== 'playing') return;
     const pos = e.changedTouches ? {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY} : getPos(e);
     if (Math.hypot(pos.x - dragStart.x, pos.y - dragStart.y) < CONFIG.clickTolerance) {
+        /*
         const hexCoords = pixelToHex(pos.x - renderer.camera.x, pos.y - renderer.camera.y, CONFIG.hexSize);
         if(hexCoords.col >= 0 && hexCoords.col < CONFIG.gridWidth && hexCoords.row >= 0 && hexCoords.row < CONFIG.gridHeight) {
             const hex = game.hexGrid[hexCoords.col][hexCoords.row];
             hex && hex.active ? game.handleTerritoryClick(hex.territoryId) : (game.selectedTerritoryId = null);
+        }*/
+
+        let Y_SCALE = 0.75;
+        let localX = pos.x - renderer.camera.x;
+        let localY = (pos.y - renderer.camera.y) / Y_SCALE; // 傾いたY軸座標を補正
+        let t_hex = pixelToHex(localX, localY, CONFIG.hexSize);
+        if (t_hex.col >= 0 && t_hex.col < CONFIG.gridWidth && t_hex.row >= 0 && t_hex.row < CONFIG.gridHeight) {
+            let e_hex = game.hexGrid[t_hex.col][t_hex.row];
+            e_hex && e_hex.active ? game.handleTerritoryClick(e_hex.territoryId) : game.selectedTerritoryId = null;
         }
+
     }
 };
 
@@ -135,34 +146,27 @@ document.getElementById(`confirm-quit-btn`).addEventListener(`click`, () => {
 document.getElementById(`cancel-quit-btn`).addEventListener(`click`, () => {
     document.getElementById(`quit-modal`).classList.add(`hidden`);
 });
-// モーダルの開閉イベント
-document.getElementById(`open-settings-btn`).addEventListener(`click`, () => {
-    // 操作不可クラスを削除して編集可能にする
-    document.querySelectorAll('.rule-toggle, #great-power-threshold, #small-country-threshold').forEach(el => {
-        el.classList.remove('pointer-events-none');
+document.getElementById(`open-settings-btn`).addEventListener(`click`,()=>{
+    // ゲーム開始前：クリック無効化（pointer-events-none）を解除して操作可能にする
+    document.querySelectorAll(`.rule-toggle, #great-power-threshold, #small-country-threshold, label`).forEach(e=>{
+        e.classList.remove(`pointer-events-none`);
     });
-    
-    // チェックボックス自体の disabled を解除
-    document.querySelectorAll('.rule-toggle').forEach(el => el.disabled = false);
-    
-    // 数値入力欄はチェックボックスのON/OFFに合わせて disabled を切り替え
-    document.getElementById('great-power-threshold').disabled = !document.getElementById('great-power-rule').checked;
-    document.getElementById('small-country-threshold').disabled = !document.getElementById('small-country-rule').checked;
-    
+    document.querySelectorAll(`.rule-toggle`).forEach(e=>e.disabled=false);
+    document.getElementById(`great-power-threshold`).disabled=!document.getElementById(`great-power-rule`).checked;
+    document.getElementById(`small-country-threshold`).disabled=!document.getElementById(`small-country-rule`).checked;
     document.getElementById(`settings-modal`).classList.remove(`hidden`);
 });
 
-document.getElementById('close-settings-btn').addEventListener('click', () => {
-    document.getElementById('settings-modal').classList.add('hidden');
+document.getElementById(`close-settings-btn`).addEventListener(`click`,()=>{
+    document.getElementById(`settings-modal`).classList.add(`hidden`);
 });
 
-document.getElementById(`in-game-settings-btn`).addEventListener(`click`, () => {
-    // 全入力欄の disabled を解除（通常の明るさに保持）
-    document.querySelectorAll('.rule-toggle, #great-power-threshold, #small-country-threshold').forEach(el => {
-        el.disabled = false;
-        el.classList.add('pointer-events-none'); // クリック・入力を不可にする
+document.getElementById(`in-game-settings-btn`).addEventListener(`click`,()=>{
+    // ゲーム中確認：disabled を使わない（=グレーアウトさせない）で、見た目はそのままにクリックのみ無効化する
+    document.querySelectorAll(`.rule-toggle, #great-power-threshold, #small-country-threshold, label`).forEach(e=>{
+        e.disabled = false; // グレーアウトを防ぐため disabled は false に保つ
+        e.classList.add(`pointer-events-none`); // label と input の両方へのクリックを遮断
     });
-    
     document.getElementById(`settings-modal`).classList.remove(`hidden`);
 });
 

@@ -30,23 +30,62 @@ export class Renderer {
         this.fitMapToScreen();
     }
 
-    fitMapToScreen() {
-        const availableW = this.canvas.width * 0.9;
-        const availableH = this.canvas.height * 0.85;
-        const maxW = availableW / (CONFIG.gridWidth * 1.5 + 0.5);
-        const maxH = availableH / (CONFIG.gridHeight * Math.sqrt(3));
-        CONFIG.hexSize = Math.min(maxW, maxH);
+    fitMapToScreen(){
+        // 画面内の各方向の余白（マージン）を設定
+        let leftMargin = 20;     // 左端はUIがないので少しだけ空ける
+        let rightMargin = 240;   // 右端はPlayers Infoなどを避けるために広く空ける
+        let topMargin = 40;      // 上端もUIがないので少しだけ空ける
+        let bottomMargin = 120;  // 下端はボタン類を避けるために空ける
 
-        const metrics = getHexMetrics(CONFIG.hexSize);
-        const pixelW = CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
-        const pixelH = CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5;
+        // マップを最大限広げられる「描画可能領域」を計算
+        let availableWidth = this.canvas.width - leftMargin - rightMargin;
+        let availableHeight = this.canvas.height - topMargin - bottomMargin;
+
+        // 画面が極端に狭い場合のフェイルセーフ
+        if (availableWidth < 100) availableWidth = 100;
+        if (availableHeight < 100) availableHeight = 100;
+
+        let Y_SCALE=0.75; // 斜め視点の潰し具合（0.6倍）
+        let widthScale=availableWidth/(CONFIG.gridWidth*1.5+.5);
+        let heightScale=availableHeight/(CONFIG.gridHeight*Math.sqrt(3)*Y_SCALE);
+        CONFIG.hexSize=Math.min(widthScale,heightScale);
+        let metrics=getHexMetrics(CONFIG.hexSize);
+        let mapWidth=CONFIG.gridWidth * metrics.horizDist+CONFIG.hexSize*.5;
+        let mapHeight=(CONFIG.gridHeight * metrics.vertDist + metrics.vertDist*.5)*Y_SCALE;
+        this.camera.x=20+(availableWidth-mapWidth)/2; 
+        this.camera.y=40+(availableHeight-mapHeight)/2;
+    }
+    render(){
+        if(this.game.phase===`start`)return;
+        let Y_SCALE=0.75;
+        this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
         
-        this.camera.x = (this.canvas.width - pixelW) / 2;
-        this.camera.y = (this.canvas.height - pixelH) / 2 + 20;
+        // 1. マップ床面を斜めに倒して描画
+        this.ctx.save();
+        this.ctx.translate(this.camera.x,this.camera.y);
+        this.ctx.scale(1,Y_SCALE);
+        this.game.territories.forEach(t=>{
+            let baseColor=t.id===this.game.selectedTerritoryId?`#323232`:this.game.players[t.owner].color;
+            t.hexes.forEach(h=>{
+                let i=getHexCenter(h.c,h.r,CONFIG.hexSize);
+                this.drawHexagon(i.x,i.y,CONFIG.hexSize,baseColor,null,0);
+            });
+        });
+        this.drawBorders();
+        this.drawHighlights();
+        this.ctx.restore();
+        
+        // 2. 立体サイコロを真上に立ち上げて描画
+        this.ctx.save();
+        this.ctx.translate(this.camera.x,this.camera.y);
+        this.game.territories.forEach(t=>{
+            let n=getHexCenter(t.centerHex.c,t.centerHex.r,CONFIG.hexSize);
+            this.drawDiceStack(n.x, n.y * Y_SCALE, t.dice, this.game.players[t.owner].color);
+        });
+        this.ctx.restore();
     }
 
-    
-
+    /*
     fitMapToScreen() {
     // 画面内の各方向の余白（マージン）を設定
     let leftMargin = 20;     // 左端はUIがないので少しだけ空ける
@@ -102,7 +141,7 @@ export class Renderer {
 
         this.ctx.restore();
     }
-
+*/
     drawHexagon(x, y, size, fillStyle, strokeStyle, lineWidth = 1) {
         this.ctx.beginPath();
         for (let i = 0; i < 6; i++) {
@@ -143,7 +182,7 @@ export class Renderer {
         .forEach(t => {
             const isSelected = (t.id === this.game.selectedTerritoryId);
             this.ctx.strokeStyle = isSelected ? '#ffffff' : '#323232';
-            this.ctx.lineWidth = isSelected ? 5 : 4;
+            this.ctx.lineWidth = isSelected ? 4 : 4;
 
             t.hexes.forEach(h => {
                 const center = getHexCenter(h.c, h.r, CONFIG.hexSize);
@@ -163,7 +202,7 @@ export class Renderer {
             });
         });
     }
-
+/*
     drawDiceStack(x, y, count, color) {
         const diceSize = Math.max(CONFIG.hexSize * 0.90, 6);
         const stackOffset = Math.max(CONFIG.hexSize * 0.35, 4);
@@ -189,6 +228,93 @@ export class Renderer {
         this.ctx.textAlign = 'center'; this.ctx.textBaseline = 'middle';
         this.ctx.shadowColor = 'black'; this.ctx.shadowBlur = 4;
         this.ctx.fillText(count, x, startY - ((count - 1) * stackOffset) - (diceSize * 0.8));
+        this.ctx.shadowBlur = 0;
+    }
+*/
+
+    drawDiceStack(x,y,count,color){
+        let w=Math.max(CONFIG.hexSize*0.75, 6);   // サイコロの幅の半分
+        let h=w*0.75;                         // アイソメトリックひし形の高さの半分
+        let sideH=w*1.05;                    // サイコロの立体の高さ
+        let stepY=sideH*1.0;                // 上に積む時の高さオフセット
+
+        for(let i=0; i<count; i++){
+            let cy = y - i * stepY;
+            let topColor = this.shadeColor(color, 30);
+            let leftColor = this.shadeColor(color, -5);
+            let rightColor = this.shadeColor(color, -25);
+
+            this.ctx.lineWidth = 1;
+            this.ctx.lineJoin = 'round';
+            this.ctx.strokeStyle = 'rgba(0,0,0,0.4)';
+
+            // 面1: 上面 (Top Face)
+            this.ctx.fillStyle = topColor;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, cy - sideH - h);
+            this.ctx.lineTo(x + w, cy - sideH);
+            this.ctx.lineTo(x, cy - sideH + h);
+            this.ctx.lineTo(x - w, cy - sideH);
+            this.ctx.closePath();
+            this.ctx.fill(); this.ctx.stroke();
+
+            // 面2: 左側面 (Left Face)
+            this.ctx.fillStyle = leftColor;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x - w, cy - sideH);
+            this.ctx.lineTo(x, cy - sideH + h);
+            this.ctx.lineTo(x, cy + h);
+            this.ctx.lineTo(x - w, cy);
+            this.ctx.closePath();
+            this.ctx.fill(); this.ctx.stroke();
+
+            // 面3: 右側面 (Right Face)
+            this.ctx.fillStyle = rightColor;
+            this.ctx.beginPath();
+            this.ctx.moveTo(x, cy - sideH + h);
+            this.ctx.lineTo(x + w, cy - sideH);
+            this.ctx.lineTo(x + w, cy);
+            this.ctx.lineTo(x, cy + h);
+            this.ctx.closePath();
+            this.ctx.fill(); this.ctx.stroke();
+
+            // サイコロの目（上面にドットを描画）
+            let pipNum = (i === count - 1) ? Math.min(count, 6) : ((i % 6) + 1);
+            let topCy = cy - sideH;
+            let dots = [];
+            if (pipNum === 1) dots = [[0, 0]];
+            else if (pipNum === 2) dots = [[-0.4, -0.4], [0.4, 0.4]];
+            else if (pipNum === 3) dots = [[-0.4, -0.4], [0, 0], [0.4, 0.4]];
+            else if (pipNum === 4) dots = [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]];
+            else if (pipNum === 5) dots = [[-0.4, -0.4], [0.4, -0.4], [0, 0], [-0.4, 0.4], [0.4, 0.4]];
+            else if (pipNum === 6) dots = [[-0.4, -0.4], [-0.4, 0], [-0.4, 0.4], [0.4, -0.4], [0.4, 0], [0.4, 0.4]];
+
+            let pipRadius = (pipNum === 1) ? w * 0.22 : w * 0.12;
+            let dotColor = (pipNum === 1) ? '#ff3333' : '#ffffff'; // 1の目は赤ドット
+
+            dots.forEach(d => {
+                let px = x + (d[0] - d[1]) * (w * 0.45);
+                let py = topCy + (d[0] + d[1]) * (h * 0.45);
+                this.ctx.save();
+                this.ctx.translate(px, py);
+                this.ctx.scale(1, 0.5); // アイソメトリック傾斜に合わせて楕円化
+                this.ctx.fillStyle = dotColor;
+                this.ctx.beginPath();
+                this.ctx.arc(0, 0, pipRadius, 0, Math.PI * 2);
+                this.ctx.fill();
+                this.ctx.restore();
+            });
+        }
+
+        // サイコロの一番上に合計数をわかりやすく文字で表示
+        let topY = y - (count - 1) * stepY - sideH - h - 4;
+        this.ctx.fillStyle = `#ffffff`;
+        this.ctx.font = `bold ${Math.max(Math.floor(w * 1.3), 11)}px sans-serif`;
+        this.ctx.textAlign = `center`;
+        this.ctx.textBaseline = `bottom`;
+        this.ctx.shadowColor = `black`;
+        this.ctx.shadowBlur = 4;
+        this.ctx.fillText(count, x, topY);
         this.ctx.shadowBlur = 0;
     }
 

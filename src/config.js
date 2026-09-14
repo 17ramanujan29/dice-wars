@@ -17,6 +17,6 @@ export const CONFIG = {
     battleResultDisplayMs: 1500,
     bonusMap: { 2: [0, 4], 3: [0, 3, 6], 4: [0, 2, 4, 6] },
     selectedHighlight: 'rgba(255, 255, 255, 0)',
-    targetHighlight: 'rgba(200, 200, 200, 0.5)',
+    targetHighlight: 'rgba(150, 150, 150, 0.5)',
     neutralColor: '#95a5a6', 
 };
