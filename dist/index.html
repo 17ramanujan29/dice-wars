@@ -1,556 +1,971 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Dice Wars Online - Local Rules Edition</title>
     <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
     <!-- PeerJS CDN -->
     <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
     <!-- FontAwesome for Icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
+
     <style>
-        :root {
-            --main-bg-rgb: 15, 23, 42;
+      :root {
+        --main-bg-rgb: 15, 23, 42;
+      }
+      body {
+        background-color: rgba(var(--main-bg-rgb), 1);
+        color: #f8fafc;
+        -webkit-user-select: none;
+        user-select: none;
+        touch-action: none;
+        margin: 0;
+        font-family:
+          system-ui,
+          -apple-system,
+          BlinkMacSystemFont,
+          "Segoe UI",
+          Roboto,
+          Oxygen,
+          Ubuntu,
+          Cantarell,
+          sans-serif;
+        overflow: hidden;
+      }
+      #game-container {
+        width: 100vw;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+        position: relative;
+      }
+      #canvas-container {
+        flex-grow: 1;
+        position: relative;
+        overflow: hidden;
+      }
+      canvas {
+        cursor: grab;
+        touch-action: none;
+        width: 100%;
+        height: 100%;
+        display: block;
+      }
+      canvas:active {
+        cursor: grabbing;
+      }
+      .ui-panel {
+        pointer-events: auto;
+        background: rgba(15, 23, 42, 0.88);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 0.85rem;
+        box-shadow:
+          0 10px 25px -5px rgba(0, 0, 0, 0.5),
+          0 8px 10px -6px rgba(0, 0, 0, 0.3);
+      }
+      .dice-roll-anim {
+        animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
+      }
+      @keyframes shake {
+        10%,
+        90% {
+          transform: translate(-50%, -50%) translate3d(-2px, 0, 0);
         }
-        body {
-            background-color: rgba(var(--main-bg-rgb), 1);
-            color: #f8fafc;
-            -webkit-user-select: none;
-            user-select: none;
-            touch-action: none;
-            margin: 0;
-            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-            overflow: hidden;
+        20%,
+        80% {
+          transform: translate(-50%, -50%) translate3d(4px, 0, 0);
         }
-        #game-container {
-            width: 100vw;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
+        30%,
+        50%,
+        70% {
+          transform: translate(-50%, -50%) translate3d(-6px, 0, 0);
         }
-        #canvas-container {
-            flex-grow: 1;
-            position: relative;
-            overflow: hidden;
+        40%,
+        60% {
+          transform: translate(-50%, -50%) translate3d(6px, 0, 0);
         }
-        canvas {
-            cursor: grab;
-            touch-action: none;
-            width: 100%;
-            height: 100%;
-            display: block;
+      }
+      /* Custom Scrollbar for panels */
+      ::-webkit-scrollbar {
+        width: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.2);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.2);
+        border-radius: 4px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.4);
+      }
+      .pulse-glow {
+        animation: pulse-border 2s infinite;
+      }
+      @keyframes pulse-border {
+        0% {
+          box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7);
         }
-        canvas:active {
-            cursor: grabbing;
+        70% {
+          box-shadow: 0 0 0 12px rgba(245, 158, 11, 0);
         }
-        .ui-panel {
-            pointer-events: auto;
-            background: rgba(15, 23, 42, 0.88);
-            backdrop-filter: blur(12px);
-            border: 1px solid rgba(255, 255, 255, 0.12);
-            border-radius: 0.85rem;
-            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.3);
+        100% {
+          box-shadow: 0 0 0 0 rgba(245, 158, 11, 0);
         }
-        .dice-roll-anim {
-            animation: shake 0.5s cubic-bezier(.36,.07,.19,.97) both;
-        }
-        @keyframes shake {
-            10%, 90% { transform: translate(-50%, -50%) translate3d(-2px, 0, 0); }
-            20%, 80% { transform: translate(-50%, -50%) translate3d(4px, 0, 0); }
-            30%, 50%, 70% { transform: translate(-50%, -50%) translate3d(-6px, 0, 0); }
-            40%, 60% { transform: translate(-50%, -50%) translate3d(6px, 0, 0); }
-        }
-        /* Custom Scrollbar for panels */
-        ::-webkit-scrollbar {
-            width: 6px;
-        }
-        ::-webkit-scrollbar-track {
-            background: rgba(0, 0, 0, 0.2);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb {
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 4px;
-        }
-        ::-webkit-scrollbar-thumb:hover {
-            background: rgba(255, 255, 255, 0.4);
-        }
-        .pulse-glow {
-            animation: pulse-border 2s infinite;
-        }
-        @keyframes pulse-border {
-            0% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
-            70% { box-shadow: 0 0 0 12px rgba(245, 158, 11, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(245, 158, 11, 0); }
-        }
+      }
     </style>
-</head>
-<body>
-<div id="game-container">
-    <!-- Overlay UI Layer -->
-    <div id="ui-layer" class="pointer-events-none flex flex-col justify-between w-full h-full absolute top-0 left-0 z-20">
+  </head>
+  <body>
+    <main id="game-container">
+      <!-- Overlay UI Layer -->
+      <div
+        id="ui-layer"
+        class="pointer-events-none flex flex-col justify-between w-full h-full absolute top-0 left-0 z-20"
+      >
         <!-- Top Info Header -->
-        <div class="flex flex-col md:flex-row flex-grow w-full min-h-0 pointer-events-none">
-            <!-- Canvas Container -->
-            <div id="canvas-container" class="flex-grow relative pointer-events-auto h-full overflow-hidden">
-                <canvas id="gameCanvas"></canvas>
-            </div>
+        <section
+          class="flex flex-col md:flex-row flex-grow w-full min-h-0 pointer-events-none"
+          aria-label="ゲーム画面"
+        >
+          <!-- Canvas Container -->
+          <div
+            id="canvas-container"
+            class="flex-grow relative pointer-events-auto h-full overflow-hidden"
+          >
+            <canvas id="gameCanvas" aria-label="ゲームマップ"></canvas>
+          </div>
 
-            <!-- Side Info Bar -->
-            <div class="flex flex-col items-end pointer-events-auto p-3 overflow-y-auto shrink-0 z-10 space-y-2.5 max-w-xs w-full sm:w-80">
-                <!-- Status & Turn Banner -->
-                <div id="turn-info" class="ui-panel p-4 text-center w-full transition-all duration-300">
-                    <div class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1">現在の状態</div>
-                    <div id="turn-status-text" class="text-xl font-black">対戦準備中...</div>
-                    <div id="p2p-badge" class="hidden mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-950/80 text-blue-200 border border-blue-500/40">
-                        <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                        <span id="p2p-role-text">P2P ホスト</span>
-                    </div>
-                </div>
-                
-                <!-- Player Statistics Leaderboard -->
-                <div class="ui-panel p-4 w-full">
-                    <h3 class="font-bold text-xs tracking-wider uppercase text-slate-400 border-b border-slate-700/60 pb-2 mb-3 flex items-center justify-between">
-                        <span>プレイヤー一覧</span>
-                        <i class="fa-solid fa-users text-xs"></i>
-                    </h3>
-                    <div id="player-stats" class="space-y-2 text-sm"></div>
-                </div>
-            </div>
-        </div>
-        
+          <!-- Side Info Bar -->
+          <div
+            class="flex flex-col items-end pointer-events-auto p-3 overflow-y-auto shrink-0 z-10 space-y-2.5 max-w-xs w-full sm:w-80"
+          >
+            <!-- Status & Turn Banner -->
+            <section
+              id="turn-info"
+              class="ui-panel p-4 text-center w-full transition-all duration-300"
+              aria-live="polite"
+              aria-label="現在の状態"
+            >
+              <div
+                class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1"
+              >
+                現在の状態
+              </div>
+              <div id="turn-status-text" class="text-xl font-black">
+                対戦準備中...
+              </div>
+              <div
+                id="p2p-badge"
+                class="hidden mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-950/80 text-blue-200 border border-blue-500/40"
+              >
+                <span
+                  class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"
+                ></span>
+                <span id="p2p-role-text">P2P ホスト</span>
+              </div>
+            </section>
+
+            <!-- Player Statistics Leaderboard -->
+            <section
+              class="ui-panel p-4 w-full"
+              aria-labelledby="player-stats-heading"
+            >
+              <h2
+                id="player-stats-heading"
+                class="font-bold text-xs tracking-wider uppercase text-slate-400 border-b border-slate-700/60 pb-2 mb-3 flex items-center justify-between"
+              >
+                <span>プレイヤー一覧</span>
+                <i class="fa-solid fa-users text-xs"></i>
+              </h2>
+              <div
+                id="player-stats"
+                class="space-y-2 text-sm"
+                aria-live="polite"
+              ></div>
+            </section>
+          </div>
+        </section>
+
         <!-- Bottom Action Bar -->
-        <div class="flex justify-between items-center p-4 shrink-0 pointer-events-auto z-10 bg-gradient-to-t from-slate-950/90 to-transparent">
-            <div class="flex items-center gap-2">
-                <button id="in-game-settings-btn" class="ui-panel bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm hidden shadow-lg flex items-center gap-2 border border-slate-600/50 transition active:scale-95">
-                    <i class="fa-solid fa-gear"></i> ルール確認
-                </button>
-            </div>
-            
+        <nav
+          class="flex justify-between items-center p-4 shrink-0 pointer-events-auto z-10 bg-gradient-to-t from-slate-950/90 to-transparent"
+          aria-label="ゲーム操作"
+        >
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              id="in-game-settings-btn"
+              class="ui-panel bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm hidden shadow-lg flex items-center gap-2 border border-slate-600/50 transition active:scale-95"
+            >
+              <i class="fa-solid fa-gear"></i> ルール確認
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              id="quit-game-btn"
+              class="ui-panel bg-red-950/80 hover:bg-red-900/90 text-red-200 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm hidden shadow-lg border border-red-700/50 transition active:scale-95"
+            >
+              <i class="fa-solid fa-door-open mr-1"></i> 退出する
+            </button>
+            <button
+              type="button"
+              id="end-turn-btn"
+              class="ui-panel bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black py-3 px-8 rounded-xl text-base sm:text-lg hidden shadow-xl border border-amber-300/60 transform active:scale-95 transition"
+            >
+              ターン終了 <i class="fa-solid fa-arrow-right ml-1"></i>
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Top Level Screen: Mode Select Screen -->
+      <section
+        id="mode-select-screen"
+        class="z-50 pointer-events-auto bg-slate-950/95 backdrop-blur-xl flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4"
+        aria-labelledby="game-title"
+      >
+        <div
+          class="max-w-md w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col items-center"
+        >
+          <div
+            class="w-16 h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-600 rounded-2xl flex items-center justify-center text-white text-3xl shadow-xl mb-4 border border-amber-300/40"
+          >
+            <i class="fa-solid fa-dice-d6"></i>
+          </div>
+          <h1
+            id="game-title"
+            class="text-3xl sm:text-4xl font-black mb-1 bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-400 to-red-500 text-center tracking-tight"
+          >
+            DICE WARS
+          </h1>
+          <p
+            class="mb-8 text-slate-400 text-xs sm:text-sm font-medium tracking-wide"
+          >
+            ローカルルール & P2Pオンライン対戦版
+          </p>
+
+          <div class="w-full space-y-4">
+            <button
+              type="button"
+              id="start-local-btn"
+              class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-between group transition transform active:scale-[0.99] border border-blue-400/30"
+            >
+              <div class="flex items-center gap-3.5">
+                <i class="fa-solid fa-user-group text-xl text-blue-200"></i>
+                <div class="text-left">
+                  <div class="text-base leading-snug">ローカル対戦</div>
+                  <div class="text-xs text-blue-200/70 font-normal">
+                    1台の端末で2〜4人交代プレイ
+                  </div>
+                </div>
+              </div>
+              <i
+                class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform"
+              ></i>
+            </button>
+
+            <button
+              type="button"
+              id="start-online-btn"
+              class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-between group transition transform active:scale-[0.99] border border-emerald-400/30"
+            >
+              <div class="flex items-center gap-3.5">
+                <i class="fa-solid fa-globe text-xl text-emerald-200"></i>
+                <div class="text-left">
+                  <div class="text-base leading-snug">オンライン P2P 対戦</div>
+                  <div class="text-xs text-emerald-200/70 font-normal">
+                    ルーム作成または参加でリアルタイム対戦
+                  </div>
+                </div>
+              </div>
+              <i
+                class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform"
+              ></i>
+            </button>
+          </div>
+
+          <div class="mt-8 text-[11px] text-slate-500 text-center">
+            PeerJS WebRTC / Auto Fallback 通信テクノロジー搭載
+          </div>
+        </div>
+      </section>
+
+      <!-- Local Player Count Select Dialog -->
+      <div
+        id="local-player-modal"
+        class="hidden z-50 pointer-events-auto bg-slate-950/80 backdrop-blur-md flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4"
+      >
+        <div
+          class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl"
+        >
+          <h2 class="text-2xl font-bold mb-2 text-center text-white">
+            プレイヤー数選択
+          </h2>
+          <p class="text-slate-400 text-xs text-center mb-6">
+            ローカル対戦を行う人数を選んでください。
+          </p>
+          <div class="flex justify-center gap-4 mb-6">
+            <button
+              class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30"
+              data-players="2"
+            >
+              2人
+            </button>
+            <button
+              class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30"
+              data-players="3"
+            >
+              3人
+            </button>
+            <button
+              class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30"
+              data-players="4"
+            >
+              4人
+            </button>
+          </div>
+          <div class="flex justify-between gap-3">
+            <button
+              id="open-local-settings-btn"
+              class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl border border-slate-600/80 text-sm transition"
+            >
+              <i class="fa-solid fa-sliders mr-1"></i> ルール設定
+            </button>
+            <button
+              id="cancel-local-btn"
+              class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-sm border border-slate-700 transition"
+            >
+              キャンセル
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Online Lobby Screen -->
+      <div
+        id="online-lobby-screen"
+        class="hidden z-50 pointer-events-auto bg-slate-950/95 backdrop-blur-xl flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4"
+      >
+        <div
+          class="max-w-lg w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col"
+        >
+          <!-- Title Header -->
+          <div
+            class="flex items-center justify-between pb-4 border-b border-slate-700/80 mb-6"
+          >
             <div class="flex items-center gap-3">
-                <button id="quit-game-btn" class="ui-panel bg-red-950/80 hover:bg-red-900/90 text-red-200 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm hidden shadow-lg border border-red-700/50 transition active:scale-95">
-                    <i class="fa-solid fa-door-open mr-1"></i> 退出する
-                </button>
-                <button id="end-turn-btn" class="ui-panel bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black py-3 px-8 rounded-xl text-base sm:text-lg hidden shadow-xl border border-amber-300/60 transform active:scale-95 transition">
-                    ターン終了 <i class="fa-solid fa-arrow-right ml-1"></i>
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Top Level Screen: Mode Select Screen -->
-    <div id="mode-select-screen" class="z-50 pointer-events-auto bg-slate-950/95 backdrop-blur-xl flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4">
-        <div class="max-w-md w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col items-center">
-            <div class="w-16 h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-600 rounded-2xl flex items-center justify-center text-white text-3xl shadow-xl mb-4 border border-amber-300/40">
-                <i class="fa-solid fa-dice-d6"></i>
-            </div>
-            <h1 class="text-3xl sm:text-4xl font-black mb-1 bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-400 to-red-500 text-center tracking-tight">DICE WARS</h1>
-            <p class="mb-8 text-slate-400 text-xs sm:text-sm font-medium tracking-wide">ローカルルール & P2Pオンライン対戦版</p>
-            
-            <div class="w-full space-y-4">
-                <button id="start-local-btn" class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-between group transition transform active:scale-[0.99] border border-blue-400/30">
-                    <div class="flex items-center gap-3.5">
-                        <i class="fa-solid fa-user-group text-xl text-blue-200"></i>
-                        <div class="text-left">
-                            <div class="text-base leading-snug">ローカル対戦</div>
-                            <div class="text-xs text-blue-200/70 font-normal">1台の端末で2〜4人交代プレイ</div>
-                        </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform"></i>
-                </button>
-
-                <button id="start-online-btn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-between group transition transform active:scale-[0.99] border border-emerald-400/30">
-                    <div class="flex items-center gap-3.5">
-                        <i class="fa-solid fa-globe text-xl text-emerald-200"></i>
-                        <div class="text-left">
-                            <div class="text-base leading-snug">オンライン P2P 対戦</div>
-                            <div class="text-xs text-emerald-200/70 font-normal">ルーム作成または参加でリアルタイム対戦</div>
-                        </div>
-                    </div>
-                    <i class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform"></i>
-                </button>
-            </div>
-
-            <div class="mt-8 text-[11px] text-slate-500 text-center">
-                PeerJS WebRTC / Auto Fallback 通信テクノロジー搭載
-            </div>
-        </div>
-    </div>
-
-    <!-- Local Player Count Select Dialog -->
-    <div id="local-player-modal" class="hidden z-50 pointer-events-auto bg-slate-950/80 backdrop-blur-md flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4">
-        <div class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl">
-            <h2 class="text-2xl font-bold mb-2 text-center text-white">プレイヤー数選択</h2>
-            <p class="text-slate-400 text-xs text-center mb-6">ローカル対戦を行う人数を選んでください。</p>
-            <div class="flex justify-center gap-4 mb-6">
-                <button class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30" data-players="2">2人</button>
-                <button class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30" data-players="3">3人</button>
-                <button class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30" data-players="4">4人</button>
-            </div>
-            <div class="flex justify-between gap-3">
-                <button id="open-local-settings-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl border border-slate-600/80 text-sm transition">
-                    <i class="fa-solid fa-sliders mr-1"></i> ルール設定
-                </button>
-                <button id="cancel-local-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-sm border border-slate-700 transition">
-                    キャンセル
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Online Lobby Screen -->
-    <div id="online-lobby-screen" class="hidden z-50 pointer-events-auto bg-slate-950/95 backdrop-blur-xl flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4">
-        <div class="max-w-lg w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col">
-            <!-- Title Header -->
-            <div class="flex items-center justify-between pb-4 border-b border-slate-700/80 mb-6">
-                <div class="flex items-center gap-3">
-                    <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-xl">
-                        <i class="fa-solid fa-wifi"></i>
-                    </div>
-                    <div>
-                        <h2 class="text-xl font-bold text-white">オンラインロビー</h2>
-                        <div id="lobby-status-subtitle" class="text-xs text-slate-400">P2P ルームを作成または参加</div>
-                    </div>
+              <div
+                class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-xl"
+              >
+                <i class="fa-solid fa-wifi"></i>
+              </div>
+              <div>
+                <h2 class="text-xl font-bold text-white">オンラインロビー</h2>
+                <div id="lobby-status-subtitle" class="text-xs text-slate-400">
+                  P2P ルームを作成または参加
                 </div>
-                <button id="back-to-mode-btn" class="text-slate-400 hover:text-white text-lg p-2 rounded-lg hover:bg-slate-800 transition">
-                    <i class="fa-solid fa-xmark"></i>
-                </button>
+              </div>
+            </div>
+            <button
+              id="back-to-mode-btn"
+              class="text-slate-400 hover:text-white text-lg p-2 rounded-lg hover:bg-slate-800 transition"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Join Room Box / Room Code Box -->
+          <div id="lobby-connect-section" class="space-y-6">
+            <div class="mb-4">
+              <label
+                class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2"
+                >表示プレイヤー名</label
+              >
+              <input
+                type="text"
+                id="player-nickname-input"
+                placeholder="名前を入力"
+                maxlength="12"
+                class="w-full bg-slate-950 border border-slate-700 text-white py-2.5 px-3.5 rounded-xl focus:outline-none focus:border-emerald-500 font-bold text-sm"
+              />
             </div>
 
-            <!-- Join Room Box / Room Code Box -->
-            <div id="lobby-connect-section" class="space-y-6">
-                <div class="mb-4">
-                    <label class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2">表示プレイヤー名</label>
-                    <input type="text" id="player-nickname-input" placeholder="名前を入力" maxlength="12" class="w-full bg-slate-950 border border-slate-700 text-white py-2.5 px-3.5 rounded-xl focus:outline-none focus:border-emerald-500 font-bold text-sm">
-                </div>
-
-                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <!-- Create Room Card -->
-                    <div class="bg-slate-950/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between">
-                        <div>
-                            <h3 class="font-bold text-white mb-1 flex items-center"><i class="fa-solid fa-plus-circle text-emerald-400 mr-2"></i>ルームを作成</h3>
-                            <p class="text-xs text-slate-400 mb-4">ホストとして新規ルームを立てて友達を招待します。</p>
-                        </div>
-                        <button id="create-room-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 active:scale-95">
-                            <span>ルーム作成</span>
-                        </button>
-                    </div>
-
-                    <!-- Join Room Card -->
-                    <div class="bg-slate-950/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between">
-                        <div>
-                            <h3 class="font-bold text-white mb-1 flex items-center"><i class="fa-solid fa-right-to-bracket text-blue-400 mr-2"></i>ルームに参加</h3>
-                            <p class="text-xs text-slate-400 mb-2">6桁のコードを入力:</p>
-                            <input type="text" id="room-code-input" placeholder="例: DW-8X2A" maxlength="7" class="w-full uppercase font-mono tracking-widest text-center bg-slate-950 border border-slate-700 text-amber-400 py-2 px-3 rounded-lg mb-3 focus:outline-none focus:border-blue-500 font-black text-sm">
-                        </div>
-                        <button id="join-room-btn" class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 active:scale-95">
-                            <span>参加する</span>
-                        </button>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Active Lobby Waiting Room Section (hidden initially) -->
-            <div id="lobby-active-section" class="hidden space-y-6">
-                <!-- Room Code Display -->
-                <div class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex items-center justify-between">
-                    <div>
-                        <div class="text-[11px] text-slate-400 font-bold uppercase tracking-wider">ルームコード</div>
-                        <div id="room-code-display" class="text-2xl font-mono font-black text-amber-400 tracking-widest">------</div>
-                    </div>
-                    <button id="copy-room-code-btn" class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/80 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95">
-                        <i class="fa-regular fa-copy"></i> コードをコピー
-                    </button>
-                </div>
-
-                <!-- Joined Players List -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Create Room Card -->
+              <div
+                class="bg-slate-950/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between"
+              >
                 <div>
-                    <div class="flex items-center justify-between mb-3">
-                        <span class="text-xs font-bold uppercase tracking-wider text-slate-400">参加メンバー (<span id="connected-count">1</span>/4)</span>
-                        <span id="lobby-role-badge" class="text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-700 font-bold">ホスト</span>
-                    </div>
-                    <div id="lobby-player-list" class="space-y-2">
-                        <!-- Dynamic Player Badges -->
-                    </div>
+                  <h3 class="font-bold text-white mb-1 flex items-center">
+                    <i class="fa-solid fa-plus-circle text-emerald-400 mr-2"></i
+                    >ルームを作成
+                  </h3>
+                  <p class="text-xs text-slate-400 mb-4">
+                    ホストとして新規ルームを立てて友達を招待します。
+                  </p>
                 </div>
+                <button
+                  id="create-room-btn"
+                  class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span>ルーム作成</span>
+                </button>
+              </div>
 
-                <!-- Host Controls & Rule Settings Trigger -->
-                <div id="host-lobby-controls" class="space-y-3 pt-2">
-                    <button id="open-lobby-rules-btn" class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl border border-slate-700 text-sm flex items-center justify-center gap-2 transition">
-                        <i class="fa-solid fa-sliders"></i> ルール詳細設定
-                    </button>
-                    <button id="start-online-game-btn" class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold py-3.5 px-6 rounded-xl text-base shadow-xl flex items-center justify-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed">
-                        <i class="fa-solid fa-play"></i> ゲームを開始する
-                    </button>
+              <!-- Join Room Card -->
+              <div
+                class="bg-slate-950/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between"
+              >
+                <div>
+                  <h3 class="font-bold text-white mb-1 flex items-center">
+                    <i
+                      class="fa-solid fa-right-to-bracket text-blue-400 mr-2"
+                    ></i
+                    >ルームに参加
+                  </h3>
+                  <p class="text-xs text-slate-400 mb-2">6桁のコードを入力:</p>
+                  <input
+                    type="text"
+                    id="room-code-input"
+                    placeholder="例: DW-8X2A"
+                    maxlength="7"
+                    class="w-full uppercase font-mono tracking-widest text-center bg-slate-950 border border-slate-700 text-amber-400 py-2 px-3 rounded-lg mb-3 focus:outline-none focus:border-blue-500 font-black text-sm"
+                  />
                 </div>
-
-                <!-- Client Waiting Indicator -->
-                <div id="client-lobby-controls" class="hidden text-center py-5 bg-slate-950/50 rounded-xl border border-slate-800">
-                    <div class="inline-block w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"></div>
-                    <p class="text-slate-300 font-bold text-sm">ホストがゲームを開始するのを待っています...</p>
-                    <p class="text-xs text-slate-500 mt-1">ルール設定はホストが変更可能です</p>
-                </div>
-
-                <div class="pt-2 text-right">
-                    <button id="leave-lobby-btn" class="text-red-400 hover:text-red-300 text-xs font-bold underline">
-                        切断して退出する
-                    </button>
-                </div>
+                <button
+                  id="join-room-btn"
+                  class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span>参加する</span>
+                </button>
+              </div>
             </div>
-        </div>
-    </div>
+          </div>
 
-    <!-- Battle Animation Modal -->
-    <div id="battle-modal" class="ui-panel z-40 text-center pointer-events-none p-6 sm:p-8 hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[300px] max-w-md w-11/12 border-2 border-amber-400/80">
-        <h2 id="battle-title" class="text-2xl sm:text-3xl font-black mb-4 text-white tracking-wider flex items-center justify-center gap-2">
-            <i class="fa-solid fa-swords text-amber-400"></i> DICE BATTLE
+          <!-- Active Lobby Waiting Room Section (hidden initially) -->
+          <div id="lobby-active-section" class="hidden space-y-6">
+            <!-- Room Code Display -->
+            <div
+              class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex items-center justify-between"
+            >
+              <div>
+                <div
+                  class="text-[11px] text-slate-400 font-bold uppercase tracking-wider"
+                >
+                  ルームコード
+                </div>
+                <div
+                  id="room-code-display"
+                  class="text-2xl font-mono font-black text-amber-400 tracking-widest"
+                >
+                  ------
+                </div>
+              </div>
+              <button
+                id="copy-room-code-btn"
+                class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/80 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95"
+              >
+                <i class="fa-regular fa-copy"></i> コードをコピー
+              </button>
+            </div>
+
+            <!-- Joined Players List -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span
+                  class="text-xs font-bold uppercase tracking-wider text-slate-400"
+                  >参加メンバー (<span id="connected-count">1</span>/4)</span
+                >
+                <span
+                  id="lobby-role-badge"
+                  class="text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-700 font-bold"
+                  >ホスト</span
+                >
+              </div>
+              <div id="lobby-player-list" class="space-y-2">
+                <!-- Dynamic Player Badges -->
+              </div>
+            </div>
+
+            <!-- Host Controls & Rule Settings Trigger -->
+            <div id="host-lobby-controls" class="space-y-3 pt-2">
+              <button
+                id="open-lobby-rules-btn"
+                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl border border-slate-700 text-sm flex items-center justify-center gap-2 transition"
+              >
+                <i class="fa-solid fa-sliders"></i> ルール詳細設定
+              </button>
+              <button
+                id="start-online-game-btn"
+                class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold py-3.5 px-6 rounded-xl text-base shadow-xl flex items-center justify-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i class="fa-solid fa-play"></i> ゲームを開始する
+              </button>
+            </div>
+
+            <!-- Client Waiting Indicator -->
+            <div
+              id="client-lobby-controls"
+              class="hidden text-center py-5 bg-slate-950/50 rounded-xl border border-slate-800"
+            >
+              <div
+                class="inline-block w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"
+              ></div>
+              <p class="text-slate-300 font-bold text-sm">
+                ホストがゲームを開始するのを待っています...
+              </p>
+              <p class="text-xs text-slate-500 mt-1">
+                ルール設定はホストが変更可能です
+              </p>
+            </div>
+
+            <div class="pt-2 text-right">
+              <button
+                id="leave-lobby-btn"
+                class="text-red-400 hover:text-red-300 text-xs font-bold underline"
+              >
+                切断して退出する
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Battle Animation Modal -->
+      <div
+        id="battle-modal"
+        class="ui-panel z-40 text-center pointer-events-none p-6 sm:p-8 hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[300px] max-w-md w-11/12 border-2 border-amber-400/80"
+      >
+        <h2
+          id="battle-title"
+          class="text-2xl sm:text-3xl font-black mb-4 text-white tracking-wider flex items-center justify-center gap-2"
+        >
+          <i class="fa-solid fa-swords text-amber-400"></i> DICE BATTLE
         </h2>
         <div class="flex justify-between items-center gap-3 my-6">
-            <div id="atk-side" class="flex flex-col items-center flex-1">
-                <span class="text-sm font-extrabold mb-1 truncate max-w-[100px]" id="atk-player-name">攻撃側</span>
-                <div class="text-4xl sm:text-5xl font-black text-red-500 drop-shadow-md" id="atk-score">0</div>
-                <div class="text-[11px] text-slate-400 mt-2 bg-slate-950/80 px-2 py-1 rounded-md border border-slate-800">サイコロ: <span id="atk-dice-count" class="font-bold text-slate-200">0</span></div>
+          <div id="atk-side" class="flex flex-col items-center flex-1">
+            <span
+              class="text-sm font-extrabold mb-1 truncate max-w-[100px]"
+              id="atk-player-name"
+              >攻撃側</span
+            >
+            <div
+              class="text-4xl sm:text-5xl font-black text-red-500 drop-shadow-md"
+              id="atk-score"
+            >
+              0
             </div>
-            <div class="text-xl sm:text-2xl font-black text-amber-400 animate-pulse">VS</div>
-            <div id="def-side" class="flex flex-col items-center flex-1">
-                <span class="text-sm font-extrabold mb-1 truncate max-w-[100px]" id="def-player-name">防衛側</span>
-                <div class="text-4xl sm:text-5xl font-black text-blue-500 drop-shadow-md" id="def-score">0</div>
-                <div class="text-[11px] text-slate-400 mt-2 bg-slate-950/80 px-2 py-1 rounded-md border border-slate-800">サイコロ: <span id="def-dice-count" class="font-bold text-slate-200">0</span></div>
+            <div
+              class="text-[11px] text-slate-400 mt-2 bg-slate-950/80 px-2 py-1 rounded-md border border-slate-800"
+            >
+              サイコロ:
+              <span id="atk-dice-count" class="font-bold text-slate-200"
+                >0</span
+              >
             </div>
+          </div>
+          <div
+            class="text-xl sm:text-2xl font-black text-amber-400 animate-pulse"
+          >
+            VS
+          </div>
+          <div id="def-side" class="flex flex-col items-center flex-1">
+            <span
+              class="text-sm font-extrabold mb-1 truncate max-w-[100px]"
+              id="def-player-name"
+              >防衛側</span
+            >
+            <div
+              class="text-4xl sm:text-5xl font-black text-blue-500 drop-shadow-md"
+              id="def-score"
+            >
+              0
+            </div>
+            <div
+              class="text-[11px] text-slate-400 mt-2 bg-slate-950/80 px-2 py-1 rounded-md border border-slate-800"
+            >
+              サイコロ:
+              <span id="def-dice-count" class="font-bold text-slate-200"
+                >0</span
+              >
+            </div>
+          </div>
         </div>
-        <div id="battle-result" class="mt-4 text-xl sm:text-2xl font-black tracking-wide h-8"></div>
-    </div>
+        <div
+          id="battle-result"
+          class="mt-4 text-xl sm:text-2xl font-black tracking-wide h-8"
+        ></div>
+      </div>
 
-    <!-- Rules Settings Modal -->
-    <div id="settings-modal" class="hidden absolute top-0 left-0 w-full h-full bg-slate-950/80 backdrop-blur-md z-[60] flex items-center justify-center p-4 pointer-events-auto">
-        <div class="bg-slate-900 border border-slate-700 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full">
-            <h2 id="settings-modal-title" class="text-2xl font-bold mb-4 text-center text-white flex items-center justify-center gap-2">
-                <i class="fa-solid fa-sliders text-amber-400"></i> <span id="settings-title-text">ローカルルール設定</span>
-            </h2>
+      <!-- Rules Settings Modal -->
+      <div
+        id="settings-modal"
+        class="hidden absolute top-0 left-0 w-full h-full bg-slate-950/80 backdrop-blur-md z-[60] flex items-center justify-center p-4 pointer-events-auto"
+      >
+        <div
+          class="bg-slate-900 border border-slate-700 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full"
+        >
+          <h2
+            id="settings-modal-title"
+            class="text-2xl font-bold mb-4 text-center text-white flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-sliders text-amber-400"></i>
+            <span id="settings-title-text">ローカルルール設定</span>
+          </h2>
 
-            <!-- Read Only Notice Banner -->
-            <div id="settings-readonly-notice" class="hidden mb-4 p-2.5 bg-amber-950/60 border border-amber-500/40 rounded-xl text-amber-200 text-xs text-center font-bold flex items-center justify-center gap-2">
-                <i class="fa-solid fa-lock"></i> <span>対戦中（またはゲスト時）はルール変更できません</span>
+          <!-- Read Only Notice Banner -->
+          <div
+            id="settings-readonly-notice"
+            class="hidden mb-4 p-2.5 bg-amber-950/60 border border-amber-500/40 rounded-xl text-amber-200 text-xs text-center font-bold flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-lock"></i>
+            <span>対戦中（またはゲスト時）はルール変更できません</span>
+          </div>
+
+          <div class="space-y-4 mb-6">
+            <!-- 後手ボーナス -->
+            <div
+              class="flex items-center justify-between p-3.5 bg-slate-950/80 rounded-xl border border-slate-800"
+            >
+              <div>
+                <label
+                  for="latter-handicap-rule"
+                  class="text-white font-bold text-sm block cursor-pointer"
+                  >後手ボーナスサイコロ</label
+                >
+                <span class="text-xs text-slate-400"
+                  >2番目以降のプレイヤーに初期サイコロ追加</span
+                >
+              </div>
+              <input
+                type="checkbox"
+                id="latter-handicap-rule"
+                class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle"
+                data-rule="latterBonusDice"
+                checked
+              />
             </div>
-            
-            <div class="space-y-4 mb-6">
-                <!-- 後手ボーナス -->
-                <div class="flex items-center justify-between p-3.5 bg-slate-950/80 rounded-xl border border-slate-800">
-                    <div>
-                        <label for="latter-handicap-rule" class="text-white font-bold text-sm block cursor-pointer">後手ボーナスサイコロ</label>
-                        <span class="text-xs text-slate-400">2番目以降のプレイヤーに初期サイコロ追加</span>
-                    </div>
-                    <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle" data-rule="latterBonusDice" checked>
-                </div>
 
-                <!-- 大国ペナルティ -->
-                <div class="flex flex-col p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <label for="great-power-rule" class="text-white font-bold text-sm block cursor-pointer">大国ペナルティ</label>
-                            <span class="text-xs text-slate-400">大国の1マス最大サイコロ数・補給を制限</span>
-                        </div>
-                        <input type="checkbox" id="great-power-rule" class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle" data-rule="greatPower" checked>
-                    </div>
-                    <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-800">
-                        <span class="text-slate-400">発動領土数しきい値:</span>
-                        <input type="number" id="great-power-threshold" class="w-20 p-1.5 bg-slate-900 text-white rounded-lg border border-slate-700 text-center font-bold" value="16" min="10" max="25">
-                    </div>
+            <!-- 大国ペナルティ -->
+            <div
+              class="flex flex-col p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <label
+                    for="great-power-rule"
+                    class="text-white font-bold text-sm block cursor-pointer"
+                    >大国ペナルティ</label
+                  >
+                  <span class="text-xs text-slate-400"
+                    >大国の1マス最大サイコロ数・補給を制限</span
+                  >
                 </div>
-
-                <!-- 小国ボーナス -->
-                <div class="flex flex-col p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3">
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <label for="small-country-rule" class="text-white font-bold text-sm block cursor-pointer">小国ボーナス</label>
-                            <span class="text-xs text-slate-400">小国の補給サイコロ最低保証数を適用</span>
-                        </div>
-                        <input type="checkbox" id="small-country-rule" class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle" data-rule="smallCountryBonus" checked>
-                    </div>
-                    <div class="flex items-center justify-between text-xs pt-2 border-t border-slate-800">
-                        <span class="text-slate-400">発動領土数しきい値:</span>
-                        <input type="number" id="small-country-threshold" class="w-20 p-1.5 bg-slate-900 text-white rounded-lg border border-slate-700 text-center font-bold" value="5" min="1" max="9">
-                    </div>
-                </div>
+                <input
+                  type="checkbox"
+                  id="great-power-rule"
+                  class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle"
+                  data-rule="greatPower"
+                  checked
+                />
+              </div>
+              <div
+                class="flex items-center justify-between text-xs pt-2 border-t border-slate-800"
+              >
+                <span class="text-slate-400">発動領土数しきい値:</span>
+                <input
+                  type="number"
+                  id="great-power-threshold"
+                  class="w-20 p-1.5 bg-slate-900 text-white rounded-lg border border-slate-700 text-center font-bold"
+                  value="16"
+                  min="10"
+                  max="25"
+                />
+              </div>
             </div>
 
-            <button id="close-settings-btn" class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl text-base shadow-lg transition active:scale-95">
-                設定を閉じる
+            <!-- 小国ボーナス -->
+            <div
+              class="flex flex-col p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <label
+                    for="small-country-rule"
+                    class="text-white font-bold text-sm block cursor-pointer"
+                    >小国ボーナス</label
+                  >
+                  <span class="text-xs text-slate-400"
+                    >小国の補給サイコロ最低保証数を適用</span
+                  >
+                </div>
+                <input
+                  type="checkbox"
+                  id="small-country-rule"
+                  class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle"
+                  data-rule="smallCountryBonus"
+                  checked
+                />
+              </div>
+              <div
+                class="flex items-center justify-between text-xs pt-2 border-t border-slate-800"
+              >
+                <span class="text-slate-400">発動領土数しきい値:</span>
+                <input
+                  type="number"
+                  id="small-country-threshold"
+                  class="w-20 p-1.5 bg-slate-900 text-white rounded-lg border border-slate-700 text-center font-bold"
+                  value="5"
+                  min="1"
+                  max="9"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="close-settings-btn"
+            class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl text-base shadow-lg transition active:scale-95"
+          >
+            設定を閉じる
+          </button>
+        </div>
+      </div>
+
+      <!-- Quit Modal -->
+      <div
+        id="quit-modal"
+        class="hidden absolute top-0 left-0 w-full h-full bg-slate-950/80 backdrop-blur-md z-[70] flex items-center justify-center p-4 pointer-events-auto"
+      >
+        <div
+          class="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center"
+        >
+          <i
+            class="fa-solid fa-triangle-exclamation text-amber-400 text-4xl mb-3"
+          ></i>
+          <h3 class="text-xl font-bold mb-1 text-white">
+            対戦を終了しますか？
+          </h3>
+          <p class="text-xs text-slate-400 mb-6">
+            進行中の対戦データは消去されます。
+          </p>
+          <div class="flex justify-center gap-3">
+            <button
+              id="confirm-quit-btn"
+              class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition active:scale-95"
+            >
+              退出する
             </button>
+            <button
+              id="cancel-quit-btn"
+              class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl text-sm transition active:scale-95"
+            >
+              継続する
+            </button>
+          </div>
         </div>
-    </div>
+      </div>
 
-    <!-- Quit Modal -->
-    <div id="quit-modal" class="hidden absolute top-0 left-0 w-full h-full bg-slate-950/80 backdrop-blur-md z-[70] flex items-center justify-center p-4 pointer-events-auto">
-        <div class="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center">
-            <i class="fa-solid fa-triangle-exclamation text-amber-400 text-4xl mb-3"></i>
-            <h3 class="text-xl font-bold mb-1 text-white">対戦を終了しますか？</h3>
-            <p class="text-xs text-slate-400 mb-6">進行中の対戦データは消去されます。</p>
-            <div class="flex justify-center gap-3">
-                <button id="confirm-quit-btn" class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition active:scale-95">退出する</button>
-                <button id="cancel-quit-btn" class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl text-sm transition active:scale-95">継続する</button>
-            </div>
-        </div>
-    </div>
+      <!-- Custom Notification Toast Banner -->
+      <div
+        id="toast-banner"
+        class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 border border-amber-400/80 text-amber-200 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md transition-all duration-300"
+      >
+        <i
+          id="toast-icon"
+          class="fa-solid fa-circle-info text-amber-400 text-lg"
+        ></i>
+        <span id="toast-message" class="text-xs sm:text-sm font-bold"
+          >通知</span
+        >
+      </div>
+    </main>
 
-    <!-- Custom Notification Toast Banner -->
-    <div id="toast-banner" class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 border border-amber-400/80 text-amber-200 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md transition-all duration-300">
-        <i id="toast-icon" class="fa-solid fa-circle-info text-amber-400 text-lg"></i>
-        <span id="toast-message" class="text-xs sm:text-sm font-bold">通知</span>
-    </div>
-</div>
-
-<script>
-// Error Suppression Guard for Sandboxed Iframes
-window.addEventListener('error', (e) => {
-    if (e.message && (e.message.includes('WebSocket') || e.message.includes('SecurityError'))) {
-        console.warn('Sandbox restriction message captured:', e.message);
-        e.preventDefault();
-    }
-});
-
-// Global Engine Constants
-const CONFIG = {
-    hexSize: 16,
-    gridWidth: 38,
-    gridHeight: 28,
-    targetHexesPerTerritory: 18,
-    mapGenerationMaxRetries: 60,
-    maxDicePerTerritory: 8,
-    minDicePerTerritory: 1,
-    initialMaxDice: 6,
-    greatPowermaxDicePerTerritory: 8,
-    colors: ['#ef4444', '#3b82f6', '#10b981', '#f59e0b'], // Red, Blue, Green, Amber
-    borderColors: ['#dc2626', '#2563eb', '#059669', '#d97706'],
-    clickTolerance: 8,
-    battleAnimationMs: 800,
-    battleResultDisplayMs: 1400,
-    bonusMap: { 2: [0, 4], 3: [0, 3, 6], 4: [0, 2, 4, 6] },
-    selectedHighlight: 'rgba(255, 255, 255, 0.25)',
-    targetHighlight: 'rgba(239, 68, 68, 0.45)',
-    yScale: 0.8
-};
-
-// Player Class Definition
-class Player {
-    constructor(id, color, name) {
-        this.id = id;
-        this.color = color;
-        this.name = name;
-        this.peerId = null;
-    }
-}
-
-function getHexMetrics(size) {
-    return {
-        hexHeight: Math.sqrt(3) * size,
-        hexWidth: 2 * size,
-        vertDist: Math.sqrt(3) * size,
-        horizDist: 2 * size * 0.75
-    };
-}
-
-function hexToPixel(col, row, size) {
-    const metrics = getHexMetrics(size);
-    let x = col * metrics.horizDist;
-    let y = row * metrics.vertDist;
-    if (col % 2 !== 0) {
-        y += metrics.vertDist / 2;
-    }
-    return { x, y };
-}
-
-function pixelToHex(x, y, size) {
-    const q = (2 / 3 * x) / size;
-    const r = (-1 / 3 * x + Math.sqrt(3) / 3 * y) / size;
-    return cubeToAxial(q, r, -q - r);
-}
-
-function cubeToAxial(x, y, z) {
-    let rx = Math.round(x);
-    let ry = Math.round(y);
-    let rz = Math.round(z);
-    const xDiff = Math.abs(rx - x);
-    const yDiff = Math.abs(ry - y);
-    const zDiff = Math.abs(rz - z);
-
-    if (xDiff > yDiff && xDiff > zDiff) {
-        rx = -ry - rz;
-    } else if (yDiff > zDiff) {
-        ry = -rx - rz;
-    } else {
-        rz = -rx - ry;
-    }
-    return { col: rx, row: ry + (rx - (rx & 1)) / 2 };
-}
-
-function getAdjacentHexes(col, row) {
-    const neighbors = [];
-    const directions = [
-        [[1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [0, 1]],
-        [[1, 1], [1, 0], [0, -1], [-1, 0], [-1, 1], [0, 1]]
-    ];
-    for (let d of directions[col & 1]) {
-        let nc = col + d[0];
-        let nr = row + d[1];
-        if (nc >= 0 && nc < CONFIG.gridWidth && nr >= 0 && nr < CONFIG.gridHeight) {
-            neighbors.push({ col: nc, row: nr });
+    <script>
+      // Error Suppression Guard for Sandboxed Iframes
+      window.addEventListener("error", (e) => {
+        if (
+          e.message &&
+          (e.message.includes("WebSocket") ||
+            e.message.includes("SecurityError"))
+        ) {
+          console.warn("Sandbox restriction message captured:", e.message);
+          e.preventDefault();
         }
-    }
-    return neighbors;
-}
+      });
 
-// Territory Data Model
-class Territory {
-    constructor(id, hexes, centerHex) {
-        this.id = id;
-        this.hexes = hexes;
-        this.centerHex = centerHex;
-        this.owner = -1;
-        this.dice = 0;
-    }
-}
+      // Global Engine Constants
+      const CONFIG = {
+        hexSize: 16,
+        gridWidth: 38,
+        gridHeight: 28,
+        targetHexesPerTerritory: 18,
+        mapGenerationMaxRetries: 60,
+        maxDicePerTerritory: 8,
+        minDicePerTerritory: 1,
+        initialMaxDice: 6,
+        greatPowermaxDicePerTerritory: 8,
+        colors: ["#ef4444", "#3b82f6", "#10b981", "#f59e0b"], // Red, Blue, Green, Amber
+        borderColors: ["#dc2626", "#2563eb", "#059669", "#d97706"],
+        clickTolerance: 8,
+        battleAnimationMs: 800,
+        battleResultDisplayMs: 1400,
+        bonusMap: { 2: [0, 4], 3: [0, 3, 6], 4: [0, 2, 4, 6] },
+        selectedHighlight: "rgba(255, 255, 255, 0.25)",
+        targetHighlight: "rgba(239, 68, 68, 0.45)",
+        yScale: 0.8,
+      };
 
-// Map Procedural Generator
-class MapGenerator {
-    constructor() {
-        this.hexGrid = [];
-        this.territories = [];
-    }
+      // Player Class Definition
+      class Player {
+        constructor(id, color, name) {
+          this.id = id;
+          this.color = color;
+          this.name = name;
+          this.peerId = null;
+        }
+      }
 
-    generate(count) {
-        let success = false;
-        let attempts = 0;
-        while (!success && attempts < 10) {
+      function getHexMetrics(size) {
+        return {
+          hexHeight: Math.sqrt(3) * size,
+          hexWidth: 2 * size,
+          vertDist: Math.sqrt(3) * size,
+          horizDist: 2 * size * 0.75,
+        };
+      }
+
+      function hexToPixel(col, row, size) {
+        const metrics = getHexMetrics(size);
+        let x = col * metrics.horizDist;
+        let y = row * metrics.vertDist;
+        if (col % 2 !== 0) {
+          y += metrics.vertDist / 2;
+        }
+        return { x, y };
+      }
+
+      function pixelToHex(x, y, size) {
+        const q = ((2 / 3) * x) / size;
+        const r = ((-1 / 3) * x + (Math.sqrt(3) / 3) * y) / size;
+        return cubeToAxial(q, r, -q - r);
+      }
+
+      function cubeToAxial(x, y, z) {
+        let rx = Math.round(x);
+        let ry = Math.round(y);
+        let rz = Math.round(z);
+        const xDiff = Math.abs(rx - x);
+        const yDiff = Math.abs(ry - y);
+        const zDiff = Math.abs(rz - z);
+
+        if (xDiff > yDiff && xDiff > zDiff) {
+          rx = -ry - rz;
+        } else if (yDiff > zDiff) {
+          ry = -rx - rz;
+        } else {
+          rz = -rx - ry;
+        }
+        return { col: rx, row: ry + (rx - (rx & 1)) / 2 };
+      }
+
+      function getAdjacentHexes(col, row) {
+        const neighbors = [];
+        const directions = [
+          [
+            [1, 0],
+            [1, -1],
+            [0, -1],
+            [-1, -1],
+            [-1, 0],
+            [0, 1],
+          ],
+          [
+            [1, 1],
+            [1, 0],
+            [0, -1],
+            [-1, 0],
+            [-1, 1],
+            [0, 1],
+          ],
+        ];
+        for (let d of directions[col & 1]) {
+          let nc = col + d[0];
+          let nr = row + d[1];
+          if (
+            nc >= 0 &&
+            nc < CONFIG.gridWidth &&
+            nr >= 0 &&
+            nr < CONFIG.gridHeight
+          ) {
+            neighbors.push({ col: nc, row: nr });
+          }
+        }
+        return neighbors;
+      }
+
+      // Territory Data Model
+      class Territory {
+        constructor(id, hexes, centerHex) {
+          this.id = id;
+          this.hexes = hexes;
+          this.centerHex = centerHex;
+          this.owner = -1;
+          this.dice = 0;
+        }
+      }
+
+      // Map Procedural Generator
+      class MapGenerator {
+        constructor() {
+          this.hexGrid = [];
+          this.territories = [];
+        }
+
+        generate(count) {
+          let success = false;
+          let attempts = 0;
+          while (!success && attempts < 10) {
             attempts++;
             this.initGrid();
             this.territories = [];
             let failed = false;
             for (let i = 0; i < count; i++) {
-                if (!this.createTerritory(i)) {
-                    failed = true;
-                    break;
-                }
+              if (!this.createTerritory(i)) {
+                failed = true;
+                break;
+              }
             }
             if (!failed) success = true;
+          }
+          return { grid: this.hexGrid, territories: this.territories };
         }
-        return { grid: this.hexGrid, territories: this.territories };
-    }
 
-    initGrid() {
-        this.hexGrid = Array.from({ length: CONFIG.gridWidth }, (_, col) =>
+        initGrid() {
+          this.hexGrid = Array.from({ length: CONFIG.gridWidth }, (_, col) =>
             Array.from({ length: CONFIG.gridHeight }, (_, row) => ({
-                col, row, active: false, territoryId: null
-            }))
-        );
-    }
+              col,
+              row,
+              active: false,
+              territoryId: null,
+            })),
+          );
+        }
 
-    createTerritory(id) {
-        for (let retry = 0; retry < CONFIG.mapGenerationMaxRetries; retry++) {
+        createTerritory(id) {
+          for (let retry = 0; retry < CONFIG.mapGenerationMaxRetries; retry++) {
             let seed = this.findSeed(id);
             if (!seed) return false;
 
@@ -559,280 +974,347 @@ class MapGenerator {
             let blocked = false;
 
             while (hexes.length < CONFIG.targetHexesPerTerritory) {
-                let neighbor = this.findNeighbor(hexes);
-                if (!neighbor) {
-                    blocked = true;
-                    break;
-                }
-                this.setHex(neighbor.col, neighbor.row, id, true);
-                hexes.push({ c: neighbor.col, r: neighbor.row });
+              let neighbor = this.findNeighbor(hexes);
+              if (!neighbor) {
+                blocked = true;
+                break;
+              }
+              this.setHex(neighbor.col, neighbor.row, id, true);
+              hexes.push({ c: neighbor.col, r: neighbor.row });
             }
 
             if (!blocked && hexes.length === CONFIG.targetHexesPerTerritory) {
-                let center = this.calculateCentroid(hexes);
-                this.territories.push(new Territory(id, hexes, center));
-                return true;
+              let center = this.calculateCentroid(hexes);
+              this.territories.push(new Territory(id, hexes, center));
+              return true;
             }
-            hexes.forEach(h => this.setHex(h.c, h.r, null, false));
+            hexes.forEach((h) => this.setHex(h.c, h.r, null, false));
+          }
+          return false;
         }
-        return false;
-    }
 
-    findSeed(id) {
-        if (id === 0) return { col: Math.floor(CONFIG.gridWidth / 2), row: Math.floor(CONFIG.gridHeight / 2) };
-        let candidates = [];
-        for (let c = 0; c < CONFIG.gridWidth; c++) {
+        findSeed(id) {
+          if (id === 0)
+            return {
+              col: Math.floor(CONFIG.gridWidth / 2),
+              row: Math.floor(CONFIG.gridHeight / 2),
+            };
+          let candidates = [];
+          for (let c = 0; c < CONFIG.gridWidth; c++) {
             for (let r = 0; r < CONFIG.gridHeight; r++) {
-                if (!this.hexGrid[c][r].active && getAdjacentHexes(c, r).some(n => this.hexGrid[n.col][n.row].active)) {
-                    candidates.push({ col: c, row: r });
-                }
+              if (
+                !this.hexGrid[c][r].active &&
+                getAdjacentHexes(c, r).some(
+                  (n) => this.hexGrid[n.col][n.row].active,
+                )
+              ) {
+                candidates.push({ col: c, row: r });
+              }
             }
+          }
+          return candidates.length
+            ? candidates[Math.floor(Math.random() * candidates.length)]
+            : null;
         }
-        return candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
-    }
 
-    findNeighbor(hexList) {
-        let candidates = [];
-        for (let hex of hexList) {
-            getAdjacentHexes(hex.c, hex.r).forEach(n => {
-                if (!this.hexGrid[n.col][n.row].active && !candidates.some(c => c.col === n.col && c.row === n.row)) {
-                    candidates.push(n);
-                }
+        findNeighbor(hexList) {
+          let candidates = [];
+          for (let hex of hexList) {
+            getAdjacentHexes(hex.c, hex.r).forEach((n) => {
+              if (
+                !this.hexGrid[n.col][n.row].active &&
+                !candidates.some((c) => c.col === n.col && c.row === n.row)
+              ) {
+                candidates.push(n);
+              }
             });
+          }
+          return candidates.length
+            ? candidates[Math.floor(Math.random() * candidates.length)]
+            : null;
         }
-        return candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : null;
-    }
 
-    calculateCentroid(hexList) {
-        let sumX = 0, sumY = 0;
-        hexList.forEach(h => {
+        calculateCentroid(hexList) {
+          let sumX = 0,
+            sumY = 0;
+          hexList.forEach((h) => {
             let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
-            sumX += pos.x; sumY += pos.y;
-        });
-        let avgX = sumX / hexList.length, avgY = sumY / hexList.length;
-        let closest = hexList[0], minDst = Infinity;
-        hexList.forEach(h => {
+            sumX += pos.x;
+            sumY += pos.y;
+          });
+          let avgX = sumX / hexList.length,
+            avgY = sumY / hexList.length;
+          let closest = hexList[0],
+            minDst = Infinity;
+          hexList.forEach((h) => {
             let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
             let dst = Math.hypot(pos.x - avgX, pos.y - avgY);
-            if (dst < minDst) { minDst = dst; closest = h; }
-        });
-        return { c: closest.c, r: closest.r };
-    }
+            if (dst < minDst) {
+              minDst = dst;
+              closest = h;
+            }
+          });
+          return { c: closest.c, r: closest.r };
+        }
 
-    setHex(col, row, terrId, active) {
-        this.hexGrid[col][row].active = active;
-        this.hexGrid[col][row].territoryId = terrId;
-    }
-}
+        setHex(col, row, terrId, active) {
+          this.hexGrid[col][row].active = active;
+          this.hexGrid[col][row].territoryId = terrId;
+        }
+      }
 
-class GameEngine {
-    constructor() {
-        this.players = [];
-        this.territories = [];
-        this.hexGrid = [];
-        this.currentPlayerIndex = 0;
-        this.selectedTerritoryId = null;
-        this.phase = 'start'; // 'start', 'playing', 'battling', 'gameover'
-        this.rules = {
+      class GameEngine {
+        constructor() {
+          this.players = [];
+          this.territories = [];
+          this.hexGrid = [];
+          this.currentPlayerIndex = 0;
+          this.selectedTerritoryId = null;
+          this.phase = "start"; // 'start', 'playing', 'battling', 'gameover'
+          this.rules = {
             greatPower: true,
             latterBonusDice: true,
             smallCountryBonus: true,
             greatPowerThreshold: 16,
-            smallCountryThreshold: 5
-        };
-        this.winner = null;
+            smallCountryThreshold: 5,
+          };
+          this.winner = null;
 
-        // Callbacks
-        this.onStateChange = null;
-        this.onBattleStart = null;
-        this.onBattleEnd = null;
-    }
+          // Callbacks
+          this.onStateChange = null;
+          this.onBattleStart = null;
+          this.onBattleEnd = null;
+        }
 
-    startGame(playerCount, rules, playerNames = null) {
-        this.rules = { ...this.rules, ...rules };
-        const specs = { 2: { terr: 28, dice: 42 }, 3: { terr: 27, dice: 30 }, 4: { terr: 28, dice: 22 } }[playerCount] || { terr: 28, dice: 22 };
+        startGame(playerCount, rules, playerNames = null) {
+          this.rules = { ...this.rules, ...rules };
+          const specs = {
+            2: { terr: 28, dice: 42 },
+            3: { terr: 27, dice: 30 },
+            4: { terr: 28, dice: 22 },
+          }[playerCount] || { terr: 28, dice: 22 };
 
-        this.players = Array.from({ length: playerCount }, (_, i) => 
-            new Player(i, CONFIG.colors[i], (playerNames && playerNames[i]) ? playerNames[i] : `プレイヤー ${i + 1}`)
-        );
+          this.players = Array.from(
+            { length: playerCount },
+            (_, i) =>
+              new Player(
+                i,
+                CONFIG.colors[i],
+                playerNames && playerNames[i]
+                  ? playerNames[i]
+                  : `プレイヤー ${i + 1}`,
+              ),
+          );
 
-        const gen = new MapGenerator().generate(specs.terr);
-        this.hexGrid = gen.grid;
-        this.territories = gen.territories;
+          const gen = new MapGenerator().generate(specs.terr);
+          this.hexGrid = gen.grid;
+          this.territories = gen.territories;
 
-        this.distributeTerritories(specs.dice);
-        this.phase = 'playing';
-        this.currentPlayerIndex = 0;
-        this.selectedTerritoryId = null;
-        this.winner = null;
-        this.notifyStateChange();
-    }
+          this.distributeTerritories(specs.dice);
+          this.phase = "playing";
+          this.currentPlayerIndex = 0;
+          this.selectedTerritoryId = null;
+          this.winner = null;
+          this.notifyStateChange();
+        }
 
-    distributeTerritories(totalDice) {
-        [...this.territories].sort(() => Math.random() - 0.5).forEach((t, i) => {
-            t.owner = i % this.players.length;
-            t.dice = CONFIG.minDicePerTerritory;
-        });
+        distributeTerritories(totalDice) {
+          [...this.territories]
+            .sort(() => Math.random() - 0.5)
+            .forEach((t, i) => {
+              t.owner = i % this.players.length;
+              t.dice = CONFIG.minDicePerTerritory;
+            });
 
-        this.players.forEach(p => {
+          this.players.forEach((p) => {
             let owned = this.getOwnedTerritories(p.id);
-            let remaining = totalDice + (this.rules.latterBonusDice ? CONFIG.bonusMap[this.players.length][p.id] : 0) - owned.length * CONFIG.minDicePerTerritory;
+            let remaining =
+              totalDice +
+              (this.rules.latterBonusDice
+                ? CONFIG.bonusMap[this.players.length][p.id]
+                : 0) -
+              owned.length * CONFIG.minDicePerTerritory;
 
             while (remaining > 0) {
-                let targets = owned.filter(t => t.dice < CONFIG.initialMaxDice);
-                if (!targets.length) break;
-                targets[Math.floor(Math.random() * targets.length)].dice++;
-                remaining--;
+              let targets = owned.filter((t) => t.dice < CONFIG.initialMaxDice);
+              if (!targets.length) break;
+              targets[Math.floor(Math.random() * targets.length)].dice++;
+              remaining--;
             }
-        });
-    }
+          });
+        }
 
-    handleTerritoryClick(territoryId, executingPlayerIndex) {
-        if (this.phase !== 'playing') return;
-        if (executingPlayerIndex !== this.currentPlayerIndex) return;
+        handleTerritoryClick(territoryId, executingPlayerIndex) {
+          if (this.phase !== "playing") return;
+          if (executingPlayerIndex !== this.currentPlayerIndex) return;
 
-        let targetTerr = this.territories[territoryId];
-        if (!targetTerr) return;
-        let isOwn = targetTerr.owner === this.currentPlayerIndex;
+          let targetTerr = this.territories[territoryId];
+          if (!targetTerr) return;
+          let isOwn = targetTerr.owner === this.currentPlayerIndex;
 
-        if (this.selectedTerritoryId === null) {
+          if (this.selectedTerritoryId === null) {
             if (isOwn && targetTerr.dice > 1) {
-                this.selectedTerritoryId = targetTerr.id;
+              this.selectedTerritoryId = targetTerr.id;
             }
-        } else {
+          } else {
             let selectedTerr = this.territories[this.selectedTerritoryId];
             if (targetTerr.id === this.selectedTerritoryId) {
-                this.selectedTerritoryId = null; // Deselect
+              this.selectedTerritoryId = null; // Deselect
             } else if (isOwn && targetTerr.dice > 1) {
-                this.selectedTerritoryId = targetTerr.id; // Switch selection
+              this.selectedTerritoryId = targetTerr.id; // Switch selection
             } else if (!isOwn && this.areAdjacent(selectedTerr, targetTerr)) {
-                this.initiateBattle(selectedTerr, targetTerr);
+              this.initiateBattle(selectedTerr, targetTerr);
             }
+          }
+          this.notifyStateChange();
         }
-        this.notifyStateChange();
-    }
 
-    areAdjacent(t1, t2) {
-        if (!this.hexGrid || !this.hexGrid.length) return false;
-        return t1.hexes.some(h => getAdjacentHexes(h.c, h.r).some(n => 
-            this.hexGrid[n.col] && this.hexGrid[n.col][n.row] && this.hexGrid[n.col][n.row].territoryId === t2.id
-        ));
-    }
+        areAdjacent(t1, t2) {
+          if (!this.hexGrid || !this.hexGrid.length) return false;
+          return t1.hexes.some((h) =>
+            getAdjacentHexes(h.c, h.r).some(
+              (n) =>
+                this.hexGrid[n.col] &&
+                this.hexGrid[n.col][n.row] &&
+                this.hexGrid[n.col][n.row].territoryId === t2.id,
+            ),
+          );
+        }
 
-    initiateBattle(atkTerr, defTerr) {
-        this.phase = 'battling';
-        let atkOwner = this.players[atkTerr.owner];
-        let defOwner = this.players[defTerr.owner];
-        this.selectedTerritoryId = null;
+        initiateBattle(atkTerr, defTerr) {
+          this.phase = "battling";
+          let atkOwner = this.players[atkTerr.owner];
+          let defOwner = this.players[defTerr.owner];
+          this.selectedTerritoryId = null;
 
-        if (this.onBattleStart) {
+          if (this.onBattleStart) {
             this.onBattleStart(atkTerr, defTerr, atkOwner, defOwner);
+          }
+
+          setTimeout(
+            () => this.resolveBattle(atkTerr, defTerr),
+            CONFIG.battleAnimationMs,
+          );
         }
 
-        setTimeout(() => this.resolveBattle(atkTerr, defTerr), CONFIG.battleAnimationMs);
-    }
+        resolveBattle(atkTerr, defTerr) {
+          let atkRoll = this.rollDice(atkTerr.dice);
+          let defRoll = this.rollDice(defTerr.dice);
+          let result = "";
 
-    resolveBattle(atkTerr, defTerr) {
-        let atkRoll = this.rollDice(atkTerr.dice);
-        let defRoll = this.rollDice(defTerr.dice);
-        let result = '';
-
-        if (atkRoll > defRoll) {
-            result = 'win';
+          if (atkRoll > defRoll) {
+            result = "win";
             defTerr.owner = atkTerr.owner;
             defTerr.dice = atkTerr.dice - 1;
             atkTerr.dice = 1;
 
             // Apply Great Power Cap if active
-            if (this.rules.greatPower && this.getMaxConnected(atkTerr.owner) >= this.rules.greatPowerThreshold) {
-                this.getOwnedTerritories(atkTerr.owner).forEach(t => {
-                    if (t.dice > CONFIG.greatPowermaxDicePerTerritory) t.dice = CONFIG.greatPowermaxDicePerTerritory;
-                });
+            if (
+              this.rules.greatPower &&
+              this.getMaxConnected(atkTerr.owner) >=
+                this.rules.greatPowerThreshold
+            ) {
+              this.getOwnedTerritories(atkTerr.owner).forEach((t) => {
+                if (t.dice > CONFIG.greatPowermaxDicePerTerritory)
+                  t.dice = CONFIG.greatPowermaxDicePerTerritory;
+              });
             }
-        } else if (atkRoll === defRoll) {
-            result = 'draw';
+          } else if (atkRoll === defRoll) {
+            result = "draw";
             atkTerr.dice = Math.max(1, Math.floor(atkTerr.dice / 2));
             defTerr.dice = Math.max(1, Math.floor(defTerr.dice / 2));
-        } else {
-            result = 'lose';
+          } else {
+            result = "lose";
             atkTerr.dice = Math.max(1, Math.ceil(atkTerr.dice / 2));
-        }
+          }
 
-        if (this.onBattleEnd) {
+          if (this.onBattleEnd) {
             this.onBattleEnd(atkRoll, defRoll, result);
-        }
+          }
 
-        setTimeout(() => {
-            this.phase = 'playing';
+          setTimeout(() => {
+            this.phase = "playing";
             this.checkWinCondition();
             this.notifyStateChange();
-        }, CONFIG.battleResultDisplayMs);
-    }
+          }, CONFIG.battleResultDisplayMs);
+        }
 
-    endTurn(executingPlayerIndex) {
-        if (this.phase !== 'playing') return;
-        if (executingPlayerIndex !== this.currentPlayerIndex) return;
+        endTurn(executingPlayerIndex) {
+          if (this.phase !== "playing") return;
+          if (executingPlayerIndex !== this.currentPlayerIndex) return;
 
-        this.distributeReinforcements(this.currentPlayerIndex);
+          this.distributeReinforcements(this.currentPlayerIndex);
 
-        let nextIndex = (this.currentPlayerIndex + 1) % this.players.length;
-        while (this.getOwnedTerritories(nextIndex).length === 0) {
+          let nextIndex = (this.currentPlayerIndex + 1) % this.players.length;
+          while (this.getOwnedTerritories(nextIndex).length === 0) {
             nextIndex = (nextIndex + 1) % this.players.length;
+          }
+
+          this.currentPlayerIndex = nextIndex;
+          this.selectedTerritoryId = null;
+          this.notifyStateChange();
         }
 
-        this.currentPlayerIndex = nextIndex;
-        this.selectedTerritoryId = null;
-        this.notifyStateChange();
-    }
+        distributeReinforcements(pId) {
+          let owned = this.getOwnedTerritories(pId);
+          if (!owned.length) return;
 
-    distributeReinforcements(pId) {
-        let owned = this.getOwnedTerritories(pId);
-        if (!owned.length) return;
+          let maxConn = this.getMaxConnected(pId);
+          let count = Math.ceil((2 / 3) * maxConn);
 
-        let maxConn = this.getMaxConnected(pId);
-        let count = Math.ceil((2 / 3) * maxConn);
-
-        if (this.rules.smallCountryBonus && maxConn <= this.rules.smallCountryThreshold) {
+          if (
+            this.rules.smallCountryBonus &&
+            maxConn <= this.rules.smallCountryThreshold
+          ) {
             count = Math.ceil((2 / 3) * this.rules.smallCountryThreshold);
-        }
-        if (this.rules.greatPower && maxConn >= this.rules.greatPowerThreshold) {
+          }
+          if (
+            this.rules.greatPower &&
+            maxConn >= this.rules.greatPowerThreshold
+          ) {
             count = Math.ceil((2 / 3) * this.rules.greatPowerThreshold);
-        }
+          }
 
-        let cap = (this.rules.greatPower && maxConn >= this.rules.greatPowerThreshold) ? CONFIG.greatPowermaxDicePerTerritory : CONFIG.maxDicePerTerritory;
+          let cap =
+            this.rules.greatPower && maxConn >= this.rules.greatPowerThreshold
+              ? CONFIG.greatPowermaxDicePerTerritory
+              : CONFIG.maxDicePerTerritory;
 
-        while (count > 0) {
-            let targets = owned.filter(t => t.dice < cap);
+          while (count > 0) {
+            let targets = owned.filter((t) => t.dice < cap);
             if (!targets.length) break;
             targets[Math.floor(Math.random() * targets.length)].dice++;
             count--;
+          }
         }
-    }
 
-    checkWinCondition() {
-        let activeOwners = new Set(this.territories.map(t => t.owner));
-        if (activeOwners.size === 1) {
-            this.phase = 'gameover';
+        checkWinCondition() {
+          let activeOwners = new Set(this.territories.map((t) => t.owner));
+          if (activeOwners.size === 1) {
+            this.phase = "gameover";
             this.winner = this.players[Array.from(activeOwners)[0]];
+          }
         }
-    }
 
-    rollDice(count) {
-        return Array.from({ length: count }, () => Math.floor(Math.random() * 6) + 1).reduce((a, b) => a + b, 0);
-    }
+        rollDice(count) {
+          return Array.from(
+            { length: count },
+            () => Math.floor(Math.random() * 6) + 1,
+          ).reduce((a, b) => a + b, 0);
+        }
 
-    getOwnedTerritories(pId) {
-        return this.territories.filter(t => t.owner === pId);
-    }
+        getOwnedTerritories(pId) {
+          return this.territories.filter((t) => t.owner === pId);
+        }
 
-    getMaxConnected(pId) {
-        let owned = this.getOwnedTerritories(pId);
-        if (!owned.length) return 0;
+        getMaxConnected(pId) {
+          let owned = this.getOwnedTerritories(pId);
+          if (!owned.length) return 0;
 
-        let maxCount = 0;
-        let visitedGlobal = new Set();
+          let maxCount = 0;
+          let visitedGlobal = new Set();
 
-        owned.forEach(startTerr => {
+          owned.forEach((startTerr) => {
             if (visitedGlobal.has(startTerr.id)) return;
             let currentConnected = 0;
             let queue = [startTerr];
@@ -841,242 +1323,322 @@ class GameEngine {
             visitedGlobal.add(startTerr.id);
 
             while (queue.length > 0) {
-                let curr = queue.shift();
-                currentConnected++;
-                owned.filter(t => !visitedLocal.has(t.id) && this.areAdjacent(curr, t)).forEach(adj => {
-                    visitedLocal.add(adj.id);
-                    visitedGlobal.add(adj.id);
-                    queue.push(adj);
+              let curr = queue.shift();
+              currentConnected++;
+              owned
+                .filter(
+                  (t) => !visitedLocal.has(t.id) && this.areAdjacent(curr, t),
+                )
+                .forEach((adj) => {
+                  visitedLocal.add(adj.id);
+                  visitedGlobal.add(adj.id);
+                  queue.push(adj);
                 });
             }
             if (currentConnected > maxCount) maxCount = currentConnected;
-        });
+          });
 
-        return maxCount;
-    }
+          return maxCount;
+        }
 
-    exportState() {
-        return {
+        exportState() {
+          return {
             players: this.players,
             territories: this.territories,
             currentPlayerIndex: this.currentPlayerIndex,
             selectedTerritoryId: this.selectedTerritoryId,
             phase: this.phase,
             rules: this.rules,
-            winner: this.winner
-        };
-    }
-
-    rebuildHexGridFromTerritories() {
-        this.hexGrid = Array.from({ length: CONFIG.gridWidth }, (_, col) =>
-            Array.from({ length: CONFIG.gridHeight }, (_, row) => ({
-                col, row, active: false, territoryId: null
-            }))
-        );
-        if (this.territories) {
-            this.territories.forEach(t => {
-                t.hexes.forEach(h => {
-                    if (h.c >= 0 && h.c < CONFIG.gridWidth && h.r >= 0 && h.r < CONFIG.gridHeight) {
-                        this.hexGrid[h.c][h.r].active = true;
-                        this.hexGrid[h.c][h.r].territoryId = t.id;
-                    }
-                });
-            });
+            winner: this.winner,
+          };
         }
-    }
 
-    importState(state) {
-        this.players = state.players;
-        this.territories = state.territories;
-        this.currentPlayerIndex = state.currentPlayerIndex;
-        this.selectedTerritoryId = state.selectedTerritoryId;
-        this.phase = state.phase;
-        this.rules = state.rules;
-        this.winner = state.winner;
-        this.rebuildHexGridFromTerritories();
-        this.notifyStateChange();
-    }
+        rebuildHexGridFromTerritories() {
+          this.hexGrid = Array.from({ length: CONFIG.gridWidth }, (_, col) =>
+            Array.from({ length: CONFIG.gridHeight }, (_, row) => ({
+              col,
+              row,
+              active: false,
+              territoryId: null,
+            })),
+          );
+          if (this.territories) {
+            this.territories.forEach((t) => {
+              t.hexes.forEach((h) => {
+                if (
+                  h.c >= 0 &&
+                  h.c < CONFIG.gridWidth &&
+                  h.r >= 0 &&
+                  h.r < CONFIG.gridHeight
+                ) {
+                  this.hexGrid[h.c][h.r].active = true;
+                  this.hexGrid[h.c][h.r].territoryId = t.id;
+                }
+              });
+            });
+          }
+        }
 
-    notifyStateChange() {
-        if (this.onStateChange) this.onStateChange(this);
-    }
-}
+        importState(state) {
+          this.players = state.players;
+          this.territories = state.territories;
+          this.currentPlayerIndex = state.currentPlayerIndex;
+          this.selectedTerritoryId = state.selectedTerritoryId;
+          this.phase = state.phase;
+          this.rules = state.rules;
+          this.winner = state.winner;
+          this.rebuildHexGridFromTerritories();
+          this.notifyStateChange();
+        }
 
-class CanvasRenderer {
-    constructor(canvasId, gameEngine) {
-        this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
-        this.game = gameEngine;
-        this.camera = { x: 0, y: 0 };
-        this.isRunning = false;
-        this.canDrag = false;
-    }
+        notifyStateChange() {
+          if (this.onStateChange) this.onStateChange(this);
+        }
+      }
 
-    start() {
-        this.isRunning = true;
-        this.resize();
-        window.addEventListener('resize', () => this.resize());
-        this.loop();
-    }
+      class CanvasRenderer {
+        constructor(canvasId, gameEngine) {
+          this.canvas = document.getElementById(canvasId);
+          this.ctx = this.canvas.getContext("2d");
+          this.game = gameEngine;
+          this.camera = { x: 0, y: 0 };
+          this.isRunning = false;
+          this.canDrag = false;
+        }
 
-    loop() {
-        if (this.isRunning) {
+        start() {
+          this.isRunning = true;
+          this.resize();
+          window.addEventListener("resize", () => this.resize());
+          this.loop();
+        }
+
+        loop() {
+          if (this.isRunning) {
             this.render();
             requestAnimationFrame(() => this.loop());
+          }
         }
-    }
 
-    resize() {
-        const parent = this.canvas.parentElement;
-        if (!parent) return;
-        this.canvas.width = parent.clientWidth;
-        this.canvas.height = parent.clientHeight;
-        this.fitMapToScreen();
-    }
+        resize() {
+          const parent = this.canvas.parentElement;
+          if (!parent) return;
+          this.canvas.width = parent.clientWidth;
+          this.canvas.height = parent.clientHeight;
+          this.fitMapToScreen();
+        }
 
-    fitMapToScreen() {
-        let availW = Math.max(100, this.canvas.width - 40);
-        let availH = Math.max(100, this.canvas.height - 40);
+        fitMapToScreen() {
+          let availW = Math.max(100, this.canvas.width - 40);
+          let availH = Math.max(100, this.canvas.height - 40);
 
-        let scaleX = availW / (CONFIG.gridWidth * 1.5 + 0.5);
-        let scaleY = availH / (CONFIG.gridHeight * Math.sqrt(3) * CONFIG.yScale);
-        CONFIG.hexSize = Math.max(12, Math.min(scaleX, scaleY));
+          let scaleX = availW / (CONFIG.gridWidth * 1.5 + 0.5);
+          let scaleY =
+            availH / (CONFIG.gridHeight * Math.sqrt(3) * CONFIG.yScale);
+          CONFIG.hexSize = Math.max(12, Math.min(scaleX, scaleY));
 
-        let metrics = getHexMetrics(CONFIG.hexSize);
-        let totalW = CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
-        let totalH = (CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5) * CONFIG.yScale;
+          let metrics = getHexMetrics(CONFIG.hexSize);
+          let totalW =
+            CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
+          let totalH =
+            (CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5) *
+            CONFIG.yScale;
 
-        this.camera.x = (this.canvas.width - totalW) / 2 + 10;
-        this.camera.y = (this.canvas.height - totalH) / 2 + 10;
-        this.canDrag = totalW > this.canvas.width || totalH > this.canvas.height;
-    }
+          this.camera.x = (this.canvas.width - totalW) / 2 + 10;
+          this.camera.y = (this.canvas.height - totalH) / 2 + 10;
+          this.canDrag =
+            totalW > this.canvas.width || totalH > this.canvas.height;
+        }
 
-    clear() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    }
+        clear() {
+          this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        }
 
-    render() {
-        if (this.game.phase === 'start') return;
+        render() {
+          if (this.game.phase === "start") return;
 
-        this.clear();
-        this.ctx.save();
-        this.ctx.translate(this.camera.x, this.camera.y);
+          this.clear();
+          this.ctx.save();
+          this.ctx.translate(this.camera.x, this.camera.y);
 
-        // Draw Base Hex Surface
-        this.ctx.save();
-        this.ctx.scale(1, CONFIG.yScale);
-        this.game.territories.forEach(t => {
-            let color = (t.id === this.game.selectedTerritoryId) ? '#475569' : this.game.players[t.owner].color;
-            t.hexes.forEach(h => {
-                let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
-                this.drawHexagon(pos.x, pos.y, CONFIG.hexSize, color, null, 0);
+          // Draw Base Hex Surface
+          this.ctx.save();
+          this.ctx.scale(1, CONFIG.yScale);
+          this.game.territories.forEach((t) => {
+            let color =
+              t.id === this.game.selectedTerritoryId
+                ? "#475569"
+                : this.game.players[t.owner].color;
+            t.hexes.forEach((h) => {
+              let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
+              this.drawHexagon(pos.x, pos.y, CONFIG.hexSize, color, null, 0);
             });
-        });
+          });
 
-        this.drawBorders();
-        this.drawHighlights();
-        this.ctx.restore();
+          this.drawBorders();
+          this.drawHighlights();
+          this.ctx.restore();
 
-        // Draw Isometric 3D Dice Stacks
-        this.game.territories.forEach(t => {
+          // Draw Isometric 3D Dice Stacks
+          this.game.territories.forEach((t) => {
             let pos = hexToPixel(t.centerHex.c, t.centerHex.r, CONFIG.hexSize);
-            this.drawDiceStack(pos.x, pos.y * CONFIG.yScale, t.dice, this.game.players[t.owner].color);
-        });
+            this.drawDiceStack(
+              pos.x,
+              pos.y * CONFIG.yScale,
+              t.dice,
+              this.game.players[t.owner].color,
+            );
+          });
 
-        this.ctx.restore();
-    }
+          this.ctx.restore();
+        }
 
-    drawHexagon(x, y, size, fillColor, strokeColor, strokeWidth = 1) {
-        this.ctx.beginPath();
-        for (let i = 0; i < 6; i++) {
+        drawHexagon(x, y, size, fillColor, strokeColor, strokeWidth = 1) {
+          this.ctx.beginPath();
+          for (let i = 0; i < 6; i++) {
             let angle = (Math.PI / 180) * (60 * i);
             let px = x + size * Math.cos(angle);
             let py = y + size * Math.sin(angle);
             if (i === 0) this.ctx.moveTo(px, py);
             else this.ctx.lineTo(px, py);
-        }
-        this.ctx.closePath();
-        if (fillColor) {
+          }
+          this.ctx.closePath();
+          if (fillColor) {
             this.ctx.fillStyle = fillColor;
             this.ctx.fill();
-        }
-        if (strokeColor) {
+          }
+          if (strokeColor) {
             this.ctx.lineWidth = strokeWidth;
             this.ctx.strokeStyle = strokeColor;
             this.ctx.stroke();
+          }
         }
-    }
 
-    drawHighlights() {
-        let selId = this.game.selectedTerritoryId;
-        if (selId === null) return;
+        drawHighlights() {
+          let selId = this.game.selectedTerritoryId;
+          if (selId === null) return;
 
-        let selTerr = this.game.territories.find(t => t.id === selId);
-        if (!selTerr) return;
+          let selTerr = this.game.territories.find((t) => t.id === selId);
+          if (!selTerr) return;
 
-        // Highlight Selected Territory
-        selTerr.hexes.forEach(h => {
+          // Highlight Selected Territory
+          selTerr.hexes.forEach((h) => {
             let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
-            this.drawHexagon(pos.x, pos.y, CONFIG.hexSize, CONFIG.selectedHighlight, '#ffffff', 2);
-        });
+            this.drawHexagon(
+              pos.x,
+              pos.y,
+              CONFIG.hexSize,
+              CONFIG.selectedHighlight,
+              "#ffffff",
+              2,
+            );
+          });
 
-        // Highlight Attack Targets
-        this.game.territories.filter(t => t.owner !== selTerr.owner && this.game.areAdjacent(selTerr, t)).forEach(t => {
-            t.hexes.forEach(h => {
+          // Highlight Attack Targets
+          this.game.territories
+            .filter(
+              (t) =>
+                t.owner !== selTerr.owner && this.game.areAdjacent(selTerr, t),
+            )
+            .forEach((t) => {
+              t.hexes.forEach((h) => {
                 let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
-                this.drawHexagon(pos.x, pos.y, CONFIG.hexSize, CONFIG.targetHighlight, null, 0);
+                this.drawHexagon(
+                  pos.x,
+                  pos.y,
+                  CONFIG.hexSize,
+                  CONFIG.targetHighlight,
+                  null,
+                  0,
+                );
+              });
             });
-        });
-    }
+        }
 
-    drawBorders() {
-        this.ctx.lineCap = 'round';
-        this.ctx.lineJoin = 'round';
-        const vertexAngles = [0, 5, 4, 3, 2, 1];
-        const dirOffset = [
-            [[1, 0], [1, -1], [0, -1], [-1, -1], [-1, 0], [0, 1]],
-            [[1, 1], [1, 0], [0, -1], [-1, 0], [-1, 1], [0, 1]]
-        ];
+        drawBorders() {
+          this.ctx.lineCap = "round";
+          this.ctx.lineJoin = "round";
+          const vertexAngles = [0, 5, 4, 3, 2, 1];
+          const dirOffset = [
+            [
+              [1, 0],
+              [1, -1],
+              [0, -1],
+              [-1, -1],
+              [-1, 0],
+              [0, 1],
+            ],
+            [
+              [1, 1],
+              [1, 0],
+              [0, -1],
+              [-1, 0],
+              [-1, 1],
+              [0, 1],
+            ],
+          ];
 
-        this.game.territories.forEach(terr => {
+          this.game.territories.forEach((terr) => {
             let isSel = terr.id === this.game.selectedTerritoryId;
-            this.ctx.strokeStyle = isSel ? '#ffffff' : 'rgba(15, 23, 42, 0.9)';
+            this.ctx.strokeStyle = isSel ? "#ffffff" : "rgba(15, 23, 42, 0.9)";
             this.ctx.lineWidth = isSel ? 3.5 : 2;
 
-            terr.hexes.forEach(h => {
-                let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
-                for (let i = 0; i < 6; i++) {
-                    let off = dirOffset[h.c & 1][i];
-                    let nc = h.c + off[0], nr = h.r + off[1];
-                    let isSameTerritory = (nc >= 0 && nc < CONFIG.gridWidth && nr >= 0 && nr < CONFIG.gridHeight &&
-                        this.game.hexGrid && this.game.hexGrid[nc] && this.game.hexGrid[nc][nr] &&
-                        this.game.hexGrid[nc][nr].active && this.game.hexGrid[nc][nr].territoryId === terr.id);
+            terr.hexes.forEach((h) => {
+              let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
+              for (let i = 0; i < 6; i++) {
+                let off = dirOffset[h.c & 1][i];
+                let nc = h.c + off[0],
+                  nr = h.r + off[1];
+                let isSameTerritory =
+                  nc >= 0 &&
+                  nc < CONFIG.gridWidth &&
+                  nr >= 0 &&
+                  nr < CONFIG.gridHeight &&
+                  this.game.hexGrid &&
+                  this.game.hexGrid[nc] &&
+                  this.game.hexGrid[nc][nr] &&
+                  this.game.hexGrid[nc][nr].active &&
+                  this.game.hexGrid[nc][nr].territoryId === terr.id;
 
-                    if (!isSameTerritory) {
-                        let a1 = (Math.PI / 180) * (60 * vertexAngles[i]);
-                        let a2 = (Math.PI / 180) * (60 * ((vertexAngles[i] + 1) % 6));
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(pos.x + CONFIG.hexSize * Math.cos(a1), pos.y + CONFIG.hexSize * Math.sin(a1));
-                        this.ctx.lineTo(pos.x + CONFIG.hexSize * Math.cos(a2), pos.y + CONFIG.hexSize * Math.sin(a2));
-                        this.ctx.stroke();
-                    }
+                if (!isSameTerritory) {
+                  let a1 = (Math.PI / 180) * (60 * vertexAngles[i]);
+                  let a2 = (Math.PI / 180) * (60 * ((vertexAngles[i] + 1) % 6));
+                  this.ctx.beginPath();
+                  this.ctx.moveTo(
+                    pos.x + CONFIG.hexSize * Math.cos(a1),
+                    pos.y + CONFIG.hexSize * Math.sin(a1),
+                  );
+                  this.ctx.lineTo(
+                    pos.x + CONFIG.hexSize * Math.cos(a2),
+                    pos.y + CONFIG.hexSize * Math.sin(a2),
+                  );
+                  this.ctx.stroke();
                 }
+              }
             });
-        });
-    }
+          });
+        }
 
-    drawDiceStack(x, y, count, baseColor) {
-        let size = Math.max(CONFIG.hexSize * 0.65, 6);
-        let rh = size * 0.75, dy = size * 0.85;
-        let isSplit = count >= 5;
-        let offset = size * 0.5;
-        let startY = y;
+        drawDiceStack(x, y, count, baseColor) {
+          let size = Math.max(CONFIG.hexSize * 0.65, 6);
+          let rh = size * 0.75,
+            dy = size * 0.85;
+          let isSplit = count >= 5;
+          let offset = size * 0.5;
+          let startY = y;
 
-        for (let i = 0; i < count; i++) {
-            let dx = x, layer = i;
+          for (let i = 0; i < count; i++) {
+            let dx = x,
+              layer = i;
             if (isSplit) {
-                if (i < 4) { dx = x - offset; layer = i; }
-                else { dx = x + offset; layer = i - 4; startY = y + rh; }
+              if (i < 4) {
+                dx = x - offset;
+                layer = i;
+              } else {
+                dx = x + offset;
+                layer = i - 4;
+                startY = y + rh;
+              }
             }
             let my = startY - layer * dy;
             let topC = this.adjustColor(baseColor, 35);
@@ -1084,7 +1646,7 @@ class CanvasRenderer {
             let rightC = this.adjustColor(baseColor, -25);
 
             this.ctx.lineWidth = 1.2;
-            this.ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+            this.ctx.strokeStyle = "rgba(0,0,0,0.6)";
 
             // Top Face
             this.ctx.fillStyle = topC;
@@ -1094,7 +1656,8 @@ class CanvasRenderer {
             this.ctx.lineTo(dx, my - size + rh);
             this.ctx.lineTo(dx - size, my - size);
             this.ctx.closePath();
-            this.ctx.fill(); this.ctx.stroke();
+            this.ctx.fill();
+            this.ctx.stroke();
 
             // Left Face
             this.ctx.fillStyle = leftC;
@@ -1104,7 +1667,8 @@ class CanvasRenderer {
             this.ctx.lineTo(dx, my + rh);
             this.ctx.lineTo(dx - size, my);
             this.ctx.closePath();
-            this.ctx.fill(); this.ctx.stroke();
+            this.ctx.fill();
+            this.ctx.stroke();
 
             // Right Face
             this.ctx.fillStyle = rightC;
@@ -1114,584 +1678,861 @@ class CanvasRenderer {
             this.ctx.lineTo(dx + size, my);
             this.ctx.lineTo(dx, my + rh);
             this.ctx.closePath();
-            this.ctx.fill(); this.ctx.stroke();
+            this.ctx.fill();
+            this.ctx.stroke();
 
             // Pip Dots
-            let val = (i === count - 1) ? Math.min(count, 6) : (i % 6) + 1;
+            let val = i === count - 1 ? Math.min(count, 6) : (i % 6) + 1;
             let pY = my - size;
             let dots = [];
             if (val === 1) dots = [[0, 0]];
-            else if (val === 2) dots = [[-0.4, -0.4], [0.4, 0.4]];
-            else if (val === 3) dots = [[-0.4, -0.4], [0, 0], [0.4, 0.4]];
-            else if (val === 4) dots = [[-0.4, -0.4], [0.4, -0.4], [-0.4, 0.4], [0.4, 0.4]];
-            else if (val === 5) dots = [[-0.4, -0.4], [0.4, -0.4], [0, 0], [-0.4, 0.4], [0.4, 0.4]];
-            else dots = [[-0.4, -0.4], [-0.4, 0], [-0.4, 0.4], [0.4, -0.4], [0.4, 0], [0.4, 0.4]];
+            else if (val === 2)
+              dots = [
+                [-0.4, -0.4],
+                [0.4, 0.4],
+              ];
+            else if (val === 3)
+              dots = [
+                [-0.4, -0.4],
+                [0, 0],
+                [0.4, 0.4],
+              ];
+            else if (val === 4)
+              dots = [
+                [-0.4, -0.4],
+                [0.4, -0.4],
+                [-0.4, 0.4],
+                [0.4, 0.4],
+              ];
+            else if (val === 5)
+              dots = [
+                [-0.4, -0.4],
+                [0.4, -0.4],
+                [0, 0],
+                [-0.4, 0.4],
+                [0.4, 0.4],
+              ];
+            else
+              dots = [
+                [-0.4, -0.4],
+                [-0.4, 0],
+                [-0.4, 0.4],
+                [0.4, -0.4],
+                [0.4, 0],
+                [0.4, 0.4],
+              ];
 
-            let dotRadius = (val === 1) ? size * 0.28 : size * 0.15;
-            dots.forEach(d => {
-                let dotX = dx + (d[0] - d[1]) * (size * 0.4);
-                let dotY = pY + (d[0] + d[1]) * (rh * 0.4);
-                this.ctx.save();
-                this.ctx.translate(dotX, dotY);
-                this.ctx.scale(1, 0.5);
-                this.ctx.fillStyle = '#0f172a';
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, dotRadius, 0, Math.PI * 2);
-                this.ctx.fill();
-                this.ctx.restore();
+            let dotRadius = val === 1 ? size * 0.28 : size * 0.15;
+            dots.forEach((d) => {
+              let dotX = dx + (d[0] - d[1]) * (size * 0.4);
+              let dotY = pY + (d[0] + d[1]) * (rh * 0.4);
+              this.ctx.save();
+              this.ctx.translate(dotX, dotY);
+              this.ctx.scale(1, 0.5);
+              this.ctx.fillStyle = "#0f172a";
+              this.ctx.beginPath();
+              this.ctx.arc(0, 0, dotRadius, 0, Math.PI * 2);
+              this.ctx.fill();
+              this.ctx.restore();
             });
+          }
         }
-    }
 
-    adjustColor(hex, percent) {
-        let num = parseInt(hex.replace('#', ''), 16);
-        let amt = Math.round(2.55 * percent);
-        let R = (num >> 16) + amt;
-        let G = (num >> 8 & 0x00FF) + amt;
-        let B = (num & 0x0000FF) + amt;
-        return '#' + (0x1000000 + (R < 255 ? R < 1 ? 0 : R : 255) * 0x10000 + (G < 255 ? G < 1 ? 0 : G : 255) * 0x100 + (B < 255 ? B < 1 ? 0 : B : 255)).toString(16).slice(1);
-    }
-}
+        adjustColor(hex, percent) {
+          let num = parseInt(hex.replace("#", ""), 16);
+          let amt = Math.round(2.55 * percent);
+          let R = (num >> 16) + amt;
+          let G = ((num >> 8) & 0x00ff) + amt;
+          let B = (num & 0x0000ff) + amt;
+          return (
+            "#" +
+            (
+              0x1000000 +
+              (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+              (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+              (B < 255 ? (B < 1 ? 0 : B) : 255)
+            )
+              .toString(16)
+              .slice(1)
+          );
+        }
+      }
 
-class P2PNetworkManager {
-    constructor() {
-        this.peer = null;
-        this.bc = null;
-        this.isBroadcastMode = false;
-        this.connections = []; // For Host: list of client connections
-        this.hostConn = null;  // For Client: connection to host
-        this.isHost = false;
-        this.roomId = null;
-        this.myClientId = null;
-        this.myPlayerIndex = -1; // -1 for local, 0..3 for online
-        this.playersList = []; // Array of { name, peerId, index }
+      class P2PNetworkManager {
+        constructor() {
+          this.peer = null;
+          this.bc = null;
+          this.isBroadcastMode = false;
+          this.connections = []; // For Host: list of client connections
+          this.hostConn = null; // For Client: connection to host
+          this.isHost = false;
+          this.roomId = null;
+          this.myClientId = null;
+          this.myPlayerIndex = -1; // -1 for local, 0..3 for online
+          this.playersList = []; // Array of { name, peerId, index }
+          this.mode = "local";
+          this.connected = false;
+          this.clientToken =
+            sessionStorage.getItem("dicewars-client-token") ||
+            `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+          sessionStorage.setItem("dicewars-client-token", this.clientToken);
+          this.clientName = "ゲスト";
+          this.reconnectTimer = null;
+          this.reconnectAttempts = 0;
 
-        // Handlers
-        this.onLobbyUpdated = null;
-        this.onGameStartReceived = null;
-        this.onStateSyncReceived = null;
-        this.onActionReceived = null;
-        this.onPeerDisconnected = null;
-    }
+          // Handlers
+          this.onLobbyUpdated = null;
+          this.onGameStartReceived = null;
+          this.onStateSyncReceived = null;
+          this.onActionReceived = null;
+          this.onPeerDisconnected = null;
+        }
 
-    generateRoomCode() {
-        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-        let code = 'DW-';
-        for (let i = 0; i < 4; i++) {
+        generateRoomCode() {
+          const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+          let code = "DW-";
+          for (let i = 0; i < 4; i++) {
             code += chars.charAt(Math.floor(Math.random() * chars.length));
+          }
+          return code;
         }
-        return code;
-    }
 
-    getPeerIdFromRoomCode(code) {
-        return `dicewars-online-v1-${code.toUpperCase().trim().replace('-', '')}`;
-    }
+        getPeerIdFromRoomCode(code) {
+          return `dicewars-online-v1-${code.toUpperCase().trim().replace("-", "")}`;
+        }
 
-    createRoom(hostName, callback) {
-        this.roomId = this.generateRoomCode();
-        const fullPeerId = this.getPeerIdFromRoomCode(this.roomId);
+        createRoom(hostName, callback) {
+          this.clientName = hostName || "ホスト";
+          this.roomId = this.generateRoomCode();
+          const fullPeerId = this.getPeerIdFromRoomCode(this.roomId);
 
-        let handled = false;
+          let handled = false;
 
-        try {
-            if (typeof Peer === 'undefined') throw new Error('PeerJS not available');
+          try {
+            if (typeof Peer === "undefined")
+              throw new Error("PeerJS not available");
             this.peer = new Peer(fullPeerId);
             this.isHost = true;
+            this.mode = "online";
+            this.connected = true;
             this.myPlayerIndex = 0;
-            this.playersList = [{ name: hostName || 'ホスト', peerId: fullPeerId, index: 0 }];
+            this.playersList = [
+              { name: hostName || "ホスト", peerId: fullPeerId, index: 0 },
+            ];
 
-            this.peer.on('open', (id) => {
-                if (handled) return;
-                handled = true;
-                this.isBroadcastMode = false;
-                callback(true, this.roomId);
+            this.peer.on("open", (id) => {
+              if (handled) return;
+              handled = true;
+              this.isBroadcastMode = false;
+              callback(true, this.roomId);
             });
 
-            this.peer.on('connection', (conn) => {
-                this.handleIncomingConnection(conn);
+            this.peer.on("connection", (conn) => {
+              this.handleIncomingConnection(conn);
+            });
+            this.peer.on("disconnected", () => {
+              if (this.peer && !this.peer.destroyed) this.peer.reconnect();
             });
 
-            this.peer.on('error', (err) => {
-                console.warn('PeerJS error encountered, switching to local broadcast:', err);
-                if (!handled) {
-                    handled = true;
-                    this.fallbackToBroadcastChannelHost(hostName, callback);
-                } else {
-                    showToast(`P2P通知: ${err.message || err.type}`, 'warning');
-                }
-            });
-        } catch (err) {
-            console.warn('PeerJS initialization failed, using BroadcastChannel fallback:', err);
-            if (!handled) {
+            this.peer.on("error", (err) => {
+              console.warn(
+                "PeerJS error encountered, switching to local broadcast:",
+                err,
+              );
+              if (!handled) {
                 handled = true;
                 this.fallbackToBroadcastChannelHost(hostName, callback);
+              } else {
+                showToast(`P2P通知: ${err.message || err.type}`, "warning");
+              }
+            });
+          } catch (err) {
+            console.warn(
+              "PeerJS initialization failed, using BroadcastChannel fallback:",
+              err,
+            );
+            if (!handled) {
+              handled = true;
+              this.fallbackToBroadcastChannelHost(hostName, callback);
             }
+          }
         }
-    }
 
-    fallbackToBroadcastChannelHost(hostName, callback) {
-        if (this.peer) {
-            try { this.peer.destroy(); } catch (e) {}
+        fallbackToBroadcastChannelHost(hostName, callback) {
+          if (this.peer) {
+            try {
+              this.peer.destroy();
+            } catch (e) {}
             this.peer = null;
-        }
-        this.isBroadcastMode = true;
-        this.isHost = true;
-        this.myClientId = 'host_' + Math.random().toString(36).substring(2, 8);
-        this.myPlayerIndex = 0;
-        this.playersList = [{ name: hostName || 'ホスト', peerId: this.myClientId, index: 0 }];
+          }
+          this.isBroadcastMode = true;
+          this.isHost = true;
+          this.myClientId =
+            "host_" + Math.random().toString(36).substring(2, 8);
+          this.myPlayerIndex = 0;
+          this.playersList = [
+            { name: hostName || "ホスト", peerId: this.myClientId, index: 0 },
+          ];
 
-        try {
-            this.bc = new BroadcastChannel('dicewars_room_' + this.roomId);
-            this.bc.onmessage = (event) => this.handleBroadcastMessageHost(event.data);
-            showToast('外部接続制限のため、同一ブラウザ・タブ間同期モードで起動しました！', 'info');
+          try {
+            this.bc = new BroadcastChannel("dicewars_room_" + this.roomId);
+            this.bc.onmessage = (event) =>
+              this.handleBroadcastMessageHost(event.data);
+            showToast(
+              "外部接続制限のため、同一ブラウザ・タブ間同期モードで起動しました！",
+              "info",
+            );
             callback(true, this.roomId);
-        } catch (e) {
-            showToast('お使いのブラウザはローカル通信に対応していません。', 'error');
+          } catch (e) {
+            showToast(
+              "お使いのブラウザはローカル通信に対応していません。",
+              "error",
+            );
             callback(false, null);
-        }
-    }
-
-    handleIncomingConnection(conn) {
-        if (this.connections.length >= 3) {
-            conn.send({ type: 'ROOM_FULL' });
-            setTimeout(() => conn.close(), 500);
-            return;
+          }
         }
 
-        conn.on('open', () => {
+        handleIncomingConnection(conn) {
+          conn.on("open", () => {
             this.connections.push(conn);
-            conn.on('data', (data) => this.handleHostReceivedData(conn, data));
-            conn.on('close', () => this.handleClientDisconnect(conn.peer));
-        });
-    }
-
-    handleHostReceivedData(conn, data) {
-        if (data.type === 'JOIN_REQUEST') {
-            let assignedIndex = this.playersList.length;
-            this.playersList.push({ name: data.playerName || `ゲスト${assignedIndex + 1}`, peerId: conn.peer, index: assignedIndex });
-            conn.send({ type: 'JOIN_ACK', assignedIndex, roomId: this.roomId });
-            this.broadcastLobbyState();
-        } else if (data.type === 'PLAYER_ACTION') {
-            if (this.onActionReceived) {
-                this.onActionReceived(data.action, data.playerIndex);
-            }
+            conn.on("data", (data) => this.handleHostReceivedData(conn, data));
+            conn.on("close", () => this.handleClientDisconnect(conn.peer));
+            conn.on("error", () => this.handleClientDisconnect(conn.peer));
+          });
         }
-    }
 
-    handleBroadcastMessageHost(data) {
-        if (!data || (data.targetId !== 'host' && data.targetId !== 'all')) return;
-
-        if (data.type === 'JOIN_REQUEST') {
+        handleHostReceivedData(conn, data) {
+          if (data.type === "JOIN_REQUEST") {
+            if (data.clientToken)
+              this.handleClientDisconnect(null, data.clientToken, false);
             if (this.playersList.length >= 4) {
-                if (this.bc) this.bc.postMessage({ senderId: this.myClientId, targetId: data.senderId, type: 'ROOM_FULL' });
-                return;
+              conn.send({ type: "ROOM_FULL" });
+              return;
             }
             let assignedIndex = this.playersList.length;
-            this.playersList.push({ name: data.playerName || `ゲスト${assignedIndex + 1}`, peerId: data.senderId, index: assignedIndex });
-            if (this.bc) {
+            this.playersList.push({
+              name: data.playerName || `ゲスト${assignedIndex + 1}`,
+              peerId: conn.peer,
+              index: assignedIndex,
+              clientToken: data.clientToken,
+            });
+            conn.send({ type: "JOIN_ACK", assignedIndex, roomId: this.roomId });
+            this.broadcastLobbyState();
+          } else if (data.type === "LEAVE_REQUEST") {
+            this.handleClientDisconnect(conn.peer, data.clientToken);
+          } else if (data.type === "PLAYER_ACTION") {
+            if (this.onActionReceived) {
+              this.onActionReceived(data.action, data.playerIndex);
+            }
+          }
+        }
+
+        handleBroadcastMessageHost(data) {
+          if (!data || (data.targetId !== "host" && data.targetId !== "all"))
+            return;
+
+          if (data.type === "JOIN_REQUEST") {
+            if (data.clientToken)
+              this.handleClientDisconnect(null, data.clientToken, false);
+            if (this.playersList.length >= 4) {
+              if (this.bc)
                 this.bc.postMessage({
-                    senderId: this.myClientId,
-                    targetId: data.senderId,
-                    type: 'JOIN_ACK',
-                    assignedIndex,
-                    roomId: this.roomId
+                  senderId: this.myClientId,
+                  targetId: data.senderId,
+                  type: "ROOM_FULL",
                 });
+              return;
+            }
+            let assignedIndex = this.playersList.length;
+            this.playersList.push({
+              name: data.playerName || `ゲスト${assignedIndex + 1}`,
+              peerId: data.senderId,
+              index: assignedIndex,
+              clientToken: data.clientToken,
+            });
+            if (this.bc) {
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: data.senderId,
+                type: "JOIN_ACK",
+                assignedIndex,
+                roomId: this.roomId,
+              });
             }
             this.broadcastLobbyState();
-        } else if (data.type === 'PLAYER_ACTION') {
+          } else if (data.type === "LEAVE_REQUEST") {
+            this.handleClientDisconnect(data.senderId, data.clientToken);
+          } else if (data.type === "PLAYER_ACTION") {
             if (this.onActionReceived) {
-                this.onActionReceived(data.action, data.playerIndex);
+              this.onActionReceived(data.action, data.playerIndex);
             }
+          }
         }
-    }
 
-    handleClientDisconnect(peerId) {
-        this.connections = this.connections.filter(c => c.peer !== peerId);
-        this.playersList = this.playersList.filter(p => p.peerId !== peerId);
-        this.playersList.forEach((p, idx) => p.index = idx);
-        
-        showToast('プレイヤーが退出しました', 'warning');
-        this.broadcastLobbyState();
-        if (this.onPeerDisconnected) this.onPeerDisconnected();
-    }
+        handleClientDisconnect(peerId, clientToken = null, notify = true) {
+          const player = this.playersList.find(
+            (p) =>
+              p.peerId === peerId ||
+              (clientToken && p.clientToken === clientToken),
+          );
+          if (!player) return;
+          this.connections = this.connections.filter(
+            (c) => c.peer !== player.peerId,
+          );
+          this.playersList = this.playersList.filter((p) => p !== player);
+          this.playersList.forEach((p, idx) => (p.index = idx));
 
-    joinRoom(roomCode, clientName, callback) {
-        const cleanCode = roomCode.toUpperCase().trim();
-        this.roomId = cleanCode;
-        const targetPeerId = this.getPeerIdFromRoomCode(cleanCode);
+          if (notify) showToast("プレイヤーが退出しました", "warning");
+          this.broadcastLobbyState();
+          if (this.onPeerDisconnected) this.onPeerDisconnected();
+        }
 
-        let handled = false;
+        joinRoom(roomCode, clientName, callback) {
+          const cleanCode = roomCode.toUpperCase().trim();
+          this.roomId = cleanCode;
+          this.clientName = clientName || "ゲスト";
+          const targetPeerId = this.getPeerIdFromRoomCode(cleanCode);
 
-        try {
-            if (typeof Peer === 'undefined') throw new Error('PeerJS not available');
+          let handled = false;
+
+          try {
+            if (typeof Peer === "undefined")
+              throw new Error("PeerJS not available");
             this.peer = new Peer();
             this.isHost = false;
+            this.mode = "online";
+            this.connected = true;
 
-            this.peer.on('open', (id) => {
-                this.myClientId = id;
-                this.hostConn = this.peer.connect(targetPeerId);
+            this.peer.on("open", (id) => {
+              this.myClientId = id;
+              this.hostConn = this.peer.connect(targetPeerId);
 
-                this.hostConn.on('open', () => {
-                    if (handled) return;
-                    handled = true;
-                    this.hostConn.send({ type: 'JOIN_REQUEST', playerName: clientName || 'ゲスト' });
+              this.hostConn.on("open", () => {
+                if (handled) return;
+                handled = true;
+                this.hostConn.send({
+                  type: "JOIN_REQUEST",
+                  playerName: clientName || "ゲスト",
+                  clientToken: this.clientToken,
                 });
+              });
 
-                this.hostConn.on('data', (data) => this.handleClientReceivedData(data, callback));
+              this.hostConn.on("data", (data) =>
+                this.handleClientReceivedData(data, callback),
+              );
 
-                this.hostConn.on('close', () => {
-                    showToast('ホストから切断されました', 'error');
-                    if (this.onPeerDisconnected) this.onPeerDisconnected();
-                });
+              this.hostConn.on("close", () => {
+                this.connected = false;
+                showToast("ホストから切断されました", "error");
+                if (this.onPeerDisconnected) this.onPeerDisconnected();
+                this.scheduleReconnect();
+              });
 
-                this.hostConn.on('error', (err) => {
-                    console.error('Host connection error:', err);
-                    if (!handled) {
-                        handled = true;
-                        this.fallbackToBroadcastChannelClient(clientName, callback);
-                    }
-                });
-            });
-
-            this.peer.on('error', (err) => {
-                console.warn('PeerJS client error, using fallback:', err);
+              this.hostConn.on("error", (err) => {
+                this.connected = false;
+                console.error("Host connection error:", err);
                 if (!handled) {
-                    handled = true;
-                    this.fallbackToBroadcastChannelClient(clientName, callback);
+                  handled = true;
+                  this.fallbackToBroadcastChannelClient(clientName, callback);
+                } else {
+                  this.scheduleReconnect();
                 }
+              });
             });
-        } catch (err) {
-            console.warn('PeerJS client init error, using fallback:', err);
-            if (!handled) {
+
+            this.peer.on("error", (err) => {
+              console.warn("PeerJS client error, using fallback:", err);
+              if (!handled) {
                 handled = true;
                 this.fallbackToBroadcastChannelClient(clientName, callback);
+              }
+            });
+            this.peer.on("disconnected", () => {
+              this.connected = false;
+              this.scheduleReconnect();
+            });
+          } catch (err) {
+            console.warn("PeerJS client init error, using fallback:", err);
+            if (!handled) {
+              handled = true;
+              this.fallbackToBroadcastChannelClient(clientName, callback);
             }
+          }
         }
-    }
 
-    fallbackToBroadcastChannelClient(clientName, callback) {
-        if (this.peer) {
-            try { this.peer.destroy(); } catch (e) {}
+        fallbackToBroadcastChannelClient(clientName, callback) {
+          if (this.peer) {
+            try {
+              this.peer.destroy();
+            } catch (e) {}
             this.peer = null;
-        }
-        this.isBroadcastMode = true;
-        this.isHost = false;
-        this.myClientId = 'client_' + Math.random().toString(36).substring(2, 8);
+          }
+          this.isBroadcastMode = true;
+          this.isHost = false;
+          this.mode = "online";
+          this.connected = true;
+          this.myClientId =
+            "client_" + Math.random().toString(36).substring(2, 8);
 
-        try {
-            this.bc = new BroadcastChannel('dicewars_room_' + this.roomId);
+          try {
+            this.bc = new BroadcastChannel("dicewars_room_" + this.roomId);
             let joined = false;
 
             this.bc.onmessage = (event) => {
-                const data = event.data;
-                if (!data || (data.targetId !== 'all' && data.targetId !== this.myClientId)) return;
+              const data = event.data;
+              if (
+                !data ||
+                (data.targetId !== "all" && data.targetId !== this.myClientId)
+              )
+                return;
 
-                if (data.type === 'JOIN_ACK') {
-                    if (!joined) {
-                        joined = true;
-                        this.myPlayerIndex = data.assignedIndex;
-                        showToast('ローカル同期通信でルームに接続しました！', 'info');
-                        if (callback) callback(true, this.roomId);
-                    }
-                } else if (data.type === 'ROOM_FULL') {
-                    if (!joined) {
-                        joined = true;
-                        if (callback) callback(false, 'ルームが満員です');
-                        showToast('ルームが満員です (最大4人)', 'error');
-                    }
-                } else {
-                    this.handleClientReceivedData(data, null);
+              if (data.type === "JOIN_ACK") {
+                if (!joined) {
+                  joined = true;
+                  this.myPlayerIndex = data.assignedIndex;
+                  showToast("ローカル同期通信でルームに接続しました！", "info");
+                  if (callback) callback(true, this.roomId);
                 }
+              } else if (data.type === "ROOM_FULL") {
+                if (!joined) {
+                  joined = true;
+                  if (callback) callback(false, "ルームが満員です");
+                  showToast("ルームが満員です (最大4人)", "error");
+                }
+              } else {
+                this.handleClientReceivedData(data, null);
+              }
             };
 
             let retries = 0;
             const tryJoin = () => {
-                if (joined) return;
-                this.bc.postMessage({
-                    senderId: this.myClientId,
-                    targetId: 'host',
-                    type: 'JOIN_REQUEST',
-                    playerName: clientName
-                });
-                retries++;
-                if (retries < 6 && !joined) {
-                    setTimeout(tryJoin, 500);
-                } else if (!joined && retries >= 6) {
-                    if (callback) callback(false, 'ルームが見つかりません。コードを確認するか、ホスト画面を同一ブラウザで開いてください。');
-                }
+              if (joined) return;
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "host",
+                type: "JOIN_REQUEST",
+                playerName: clientName,
+                clientToken: this.clientToken,
+              });
+              retries++;
+              if (retries < 6 && !joined) {
+                setTimeout(tryJoin, 500);
+              } else if (!joined && retries >= 6) {
+                if (callback)
+                  callback(
+                    false,
+                    "ルームが見つかりません。コードを確認するか、ホスト画面を同一ブラウザで開いてください。",
+                  );
+              }
             };
             tryJoin();
-        } catch (e) {
-            showToast('ローカル通信の開始に失敗しました', 'error');
-            if (callback) callback(false, 'ローカル通信エラー');
+          } catch (e) {
+            showToast("ローカル通信の開始に失敗しました", "error");
+            if (callback) callback(false, "ローカル通信エラー");
+          }
         }
-    }
 
-    handleClientReceivedData(data, joinCallback) {
-        if (data.type === 'JOIN_ACK') {
+        handleClientReceivedData(data, joinCallback) {
+          if (data.type === "JOIN_ACK") {
             this.myPlayerIndex = data.assignedIndex;
             if (joinCallback) joinCallback(true, this.roomId);
-        } else if (data.type === 'ROOM_FULL') {
-            if (joinCallback) joinCallback(false, 'ルームが満員です');
-            showToast('ルームが満員です (最大4人)', 'error');
-        } else if (data.type === 'LOBBY_UPDATE') {
+          } else if (data.type === "ROOM_FULL") {
+            if (joinCallback) joinCallback(false, "ルームが満員です");
+            showToast("ルームが満員です (最大4人)", "error");
+          } else if (data.type === "LOBBY_UPDATE") {
             this.playersList = data.players;
             if (this.onLobbyUpdated) this.onLobbyUpdated(data);
-        } else if (data.type === 'START_GAME') {
+          } else if (data.type === "START_GAME") {
             if (this.onGameStartReceived) this.onGameStartReceived(data);
-        } else if (data.type === 'STATE_SYNC') {
-            if (this.onStateSyncReceived) this.onStateSyncReceived(data.gameState);
-        } else if (data.type === 'BATTLE_START') {
-            if (gameEngine.onBattleStart) gameEngine.onBattleStart(data.atk, data.def, data.atkOwner, data.defOwner);
-        } else if (data.type === 'BATTLE_END') {
-            if (gameEngine.onBattleEnd) gameEngine.onBattleEnd(data.atkRoll, data.defRoll, data.result);
+          } else if (data.type === "STATE_SYNC") {
+            if (this.onStateSyncReceived)
+              this.onStateSyncReceived(data.gameState);
+          } else if (data.type === "BATTLE_START") {
+            if (gameEngine.onBattleStart)
+              gameEngine.onBattleStart(
+                data.atk,
+                data.def,
+                data.atkOwner,
+                data.defOwner,
+              );
+          } else if (data.type === "BATTLE_END") {
+            if (gameEngine.onBattleEnd)
+              gameEngine.onBattleEnd(data.atkRoll, data.defRoll, data.result);
+          }
         }
-    }
 
-    broadcastLobbyState(rules = null) {
-        const payload = {
-            type: 'LOBBY_UPDATE',
+        broadcastLobbyState(rules = null) {
+          const payload = {
+            type: "LOBBY_UPDATE",
             players: this.playersList,
-            rules: rules || gameEngine.rules
-        };
-        if (this.isBroadcastMode) {
-            if (this.bc) this.bc.postMessage({ senderId: this.myClientId, targetId: 'all', ...payload });
-        } else {
-            this.connections.forEach(c => c.send(payload));
+            rules: rules || gameEngine.rules,
+          };
+          if (this.isBroadcastMode) {
+            if (this.bc)
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "all",
+                ...payload,
+              });
+          } else {
+            this.connections.forEach((c) => c.send(payload));
+          }
+          if (this.onLobbyUpdated) this.onLobbyUpdated(payload);
         }
-        if (this.onLobbyUpdated) this.onLobbyUpdated(payload);
-    }
 
-    broadcastStartGame(rules) {
-        const payload = {
-            type: 'START_GAME',
+        broadcastStartGame(rules) {
+          const payload = {
+            type: "START_GAME",
             playersCount: this.playersList.length,
-            playerNames: this.playersList.map(p => p.name),
-            rules: rules
-        };
-        if (this.isBroadcastMode) {
-            if (this.bc) this.bc.postMessage({ senderId: this.myClientId, targetId: 'all', ...payload });
-        } else {
-            this.connections.forEach(c => c.send(payload));
+            playerNames: this.playersList.map((p) => p.name),
+            rules: rules,
+          };
+          if (this.isBroadcastMode) {
+            if (this.bc)
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "all",
+                ...payload,
+              });
+          } else {
+            this.connections.forEach((c) => c.send(payload));
+          }
         }
-    }
 
-    broadcastStateSync(gameState) {
-        if (!this.isHost) return;
-        const payload = { type: 'STATE_SYNC', gameState: gameState };
-        if (this.isBroadcastMode) {
-            if (this.bc) this.bc.postMessage({ senderId: this.myClientId, targetId: 'all', ...payload });
-        } else {
-            this.connections.forEach(c => c.send(payload));
+        broadcastStateSync(gameState) {
+          if (!this.isHost) return;
+          const payload = { type: "STATE_SYNC", gameState: gameState };
+          if (this.isBroadcastMode) {
+            if (this.bc)
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "all",
+                ...payload,
+              });
+          } else {
+            this.connections.forEach((c) => c.send(payload));
+          }
         }
-    }
 
-    broadcastBattleStart(atk, def, atkOwner, defOwner) {
-        if (!this.isHost) return;
-        const payload = { type: 'BATTLE_START', atk, def, atkOwner, defOwner };
-        if (this.isBroadcastMode) {
-            if (this.bc) this.bc.postMessage({ senderId: this.myClientId, targetId: 'all', ...payload });
-        } else {
-            this.connections.forEach(c => c.send(payload));
+        broadcastBattleStart(atk, def, atkOwner, defOwner) {
+          if (!this.isHost) return;
+          const payload = {
+            type: "BATTLE_START",
+            atk,
+            def,
+            atkOwner,
+            defOwner,
+          };
+          if (this.isBroadcastMode) {
+            if (this.bc)
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "all",
+                ...payload,
+              });
+          } else {
+            this.connections.forEach((c) => c.send(payload));
+          }
         }
-    }
 
-    broadcastBattleEnd(atkRoll, defRoll, result) {
-        if (!this.isHost) return;
-        const payload = { type: 'BATTLE_END', atkRoll, defRoll, result };
-        if (this.isBroadcastMode) {
-            if (this.bc) this.bc.postMessage({ senderId: this.myClientId, targetId: 'all', ...payload });
-        } else {
-            this.connections.forEach(c => c.send(payload));
+        broadcastBattleEnd(atkRoll, defRoll, result) {
+          if (!this.isHost) return;
+          const payload = { type: "BATTLE_END", atkRoll, defRoll, result };
+          if (this.isBroadcastMode) {
+            if (this.bc)
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "all",
+                ...payload,
+              });
+          } else {
+            this.connections.forEach((c) => c.send(payload));
+          }
         }
-    }
 
-    sendActionToHost(action) {
-        if (this.isHost) {
-            if (this.onActionReceived) this.onActionReceived(action, this.myPlayerIndex);
-        } else if (this.isBroadcastMode) {
-            if (this.bc) {
-                this.bc.postMessage({
-                    senderId: this.myClientId,
-                    targetId: 'host',
-                    type: 'PLAYER_ACTION',
-                    action: action,
-                    playerIndex: this.myPlayerIndex
-                });
+        sendActionToHost(action) {
+          if (this.isHost) {
+            if (this.onActionReceived)
+              this.onActionReceived(action, this.myPlayerIndex);
+          } else if (this.isBroadcastMode) {
+            if (!this.connected) {
+              showToast("接続が切断されています", "error");
+              return;
             }
-        } else if (this.hostConn) {
-            this.hostConn.send({
-                type: 'PLAYER_ACTION',
+            if (this.bc) {
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "host",
+                type: "PLAYER_ACTION",
                 action: action,
-                playerIndex: this.myPlayerIndex
-            });
+                playerIndex: this.myPlayerIndex,
+              });
+            }
+          } else if (this.hostConn) {
+            if (!this.connected || this.hostConn.open === false) {
+              showToast("接続が切断されています", "error");
+              return;
+            }
+            try {
+              this.hostConn.send({
+                type: "PLAYER_ACTION",
+                action: action,
+                playerIndex: this.myPlayerIndex,
+              });
+            } catch (error) {
+              this.connected = false;
+              showToast("接続が切断されています", "error");
+            }
+          }
         }
-    }
 
-    disconnect() {
-        if (this.peer) {
-            try { this.peer.destroy(); } catch (e) {}
+        disconnect() {
+          if (
+            this.mode === "online" &&
+            !this.isHost &&
+            this.hostConn &&
+            this.hostConn.open
+          ) {
+            try {
+              this.hostConn.send({
+                type: "LEAVE_REQUEST",
+                clientToken: this.clientToken,
+              });
+            } catch (e) {}
+          }
+          if (
+            this.mode === "online" &&
+            !this.isHost &&
+            this.isBroadcastMode &&
+            this.bc
+          ) {
+            try {
+              this.bc.postMessage({
+                senderId: this.myClientId,
+                targetId: "host",
+                type: "LEAVE_REQUEST",
+                clientToken: this.clientToken,
+              });
+            } catch (e) {}
+          }
+          if (this.peer) {
+            try {
+              this.peer.destroy();
+            } catch (e) {}
             this.peer = null;
-        }
-        if (this.bc) {
-            try { this.bc.close(); } catch (e) {}
+          }
+          if (this.bc) {
+            try {
+              this.bc.close();
+            } catch (e) {}
             this.bc = null;
+          }
+          this.connections = [];
+          this.hostConn = null;
+          this.isHost = false;
+          this.isBroadcastMode = false;
+          this.myClientId = null;
+          this.myPlayerIndex = -1;
+          this.playersList = [];
+          this.mode = "local";
+          this.connected = false;
+          if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
+          this.reconnectTimer = null;
+          this.reconnectAttempts = 0;
         }
-        this.connections = [];
-        this.hostConn = null;
-        this.isHost = false;
-        this.isBroadcastMode = false;
-        this.myClientId = null;
-        this.myPlayerIndex = -1;
-        this.playersList = [];
-    }
-}
 
-const gameEngine = new GameEngine();
-const canvasRenderer = new CanvasRenderer('gameCanvas', gameEngine);
-const netManager = new P2PNetworkManager();
+        scheduleReconnect() {
+          if (this.reconnectTimer || this.isHost || this.mode !== "online")
+            return;
+          if (this.reconnectAttempts >= 5) return;
+          this.reconnectTimer = setTimeout(() => {
+            this.reconnectTimer = null;
+            if (this.connected || this.mode !== "online") return;
+            this.reconnectAttempts++;
+            if (this.peer) {
+              try {
+                this.peer.destroy();
+              } catch (e) {}
+              this.peer = null;
+            }
+            this.joinRoom(this.roomId, this.clientName, (success, result) => {
+              if (success) {
+                this.reconnectAttempts = 0;
+                showToast("ルームへ再接続しました", "info");
+              } else {
+                showToast(result || "再接続に失敗しました", "error");
+                this.scheduleReconnect();
+              }
+            });
+          }, 1000);
+        }
+      }
 
-// Non-blocking Toast Banner Alert Helper
-function showToast(msg, type = 'info') {
-    const banner = document.getElementById('toast-banner');
-    const msgEl = document.getElementById('toast-message');
-    const iconEl = document.getElementById('toast-icon');
+      const gameEngine = new GameEngine();
+      const canvasRenderer = new CanvasRenderer("gameCanvas", gameEngine);
+      const netManager = new P2PNetworkManager();
 
-    msgEl.innerText = msg;
-    if (type === 'error') {
-        iconEl.className = 'fa-solid fa-circle-xmark text-red-400 text-lg';
-    } else if (type === 'warning') {
-        iconEl.className = 'fa-solid fa-triangle-exclamation text-amber-400 text-lg';
-    } else {
-        iconEl.className = 'fa-solid fa-circle-info text-blue-400 text-lg';
-    }
+      // Non-blocking Toast Banner Alert Helper
+      function showToast(msg, type = "info") {
+        const banner = document.getElementById("toast-banner");
+        const msgEl = document.getElementById("toast-message");
+        const iconEl = document.getElementById("toast-icon");
 
-    banner.classList.remove('hidden');
-    setTimeout(() => banner.classList.add('hidden'), 3500);
-}
+        msgEl.innerText = msg;
+        if (type === "error") {
+          iconEl.className = "fa-solid fa-circle-xmark text-red-400 text-lg";
+        } else if (type === "warning") {
+          iconEl.className =
+            "fa-solid fa-triangle-exclamation text-amber-400 text-lg";
+        } else {
+          iconEl.className = "fa-solid fa-circle-info text-blue-400 text-lg";
+        }
 
-// Game Engine State Change Hooks
-gameEngine.onStateChange = (game) => {
-    updateUIHeader(game);
-    updatePlayerLeaderboard(game);
+        banner.classList.remove("hidden");
+        setTimeout(() => banner.classList.add("hidden"), 3500);
+      }
 
-    if (netManager.isHost && (netManager.connections.length > 0 || netManager.isBroadcastMode)) {
-        netManager.broadcastStateSync(game.exportState());
-    }
-};
+      // Game Engine State Change Hooks
+      gameEngine.onStateChange = (game) => {
+        updateUIHeader(game);
+        updatePlayerLeaderboard(game);
 
-gameEngine.onBattleStart = (atk, def, atkOwner, defOwner) => {
-    if (netManager.isHost) {
-        netManager.broadcastBattleStart(atk, def, atkOwner, defOwner);
-    }
+        if (
+          netManager.isHost &&
+          (netManager.connections.length > 0 || netManager.isBroadcastMode)
+        ) {
+          netManager.broadcastStateSync(game.exportState());
+        }
+      };
 
-    document.getElementById('atk-player-name').innerText = atkOwner.name;
-    document.getElementById('atk-player-name').style.color = atkOwner.color;
-    document.getElementById('def-player-name').innerText = defOwner.name;
-    document.getElementById('def-player-name').style.color = defOwner.color;
+      gameEngine.onBattleStart = (atk, def, atkOwner, defOwner) => {
+        if (netManager.isHost) {
+          netManager.broadcastBattleStart(atk, def, atkOwner, defOwner);
+        }
 
-    document.getElementById('atk-dice-count').innerText = atk.dice;
-    document.getElementById('def-dice-count').innerText = def.dice;
-    document.getElementById('atk-score').innerText = '...';
-    document.getElementById('def-score').innerText = '...';
-    document.getElementById('battle-result').innerText = '';
+        document.getElementById("atk-player-name").innerText = atkOwner.name;
+        document.getElementById("atk-player-name").style.color = atkOwner.color;
+        document.getElementById("def-player-name").innerText = defOwner.name;
+        document.getElementById("def-player-name").style.color = defOwner.color;
 
-    const modal = document.getElementById('battle-modal');
-    modal.classList.remove('hidden');
-    modal.classList.add('dice-roll-anim');
-    setTimeout(() => modal.classList.remove('dice-roll-anim'), CONFIG.battleAnimationMs);
-};
+        document.getElementById("atk-dice-count").innerText = atk.dice;
+        document.getElementById("def-dice-count").innerText = def.dice;
+        document.getElementById("atk-score").innerText = "...";
+        document.getElementById("def-score").innerText = "...";
+        document.getElementById("battle-result").innerText = "";
 
-gameEngine.onBattleEnd = (atkRoll, defRoll, result) => {
-    if (netManager.isHost) {
-        netManager.broadcastBattleEnd(atkRoll, defRoll, result);
-    }
+        const modal = document.getElementById("battle-modal");
+        modal.classList.remove("hidden");
+        modal.classList.add("dice-roll-anim");
+        setTimeout(
+          () => modal.classList.remove("dice-roll-anim"),
+          CONFIG.battleAnimationMs,
+        );
+      };
 
-    document.getElementById('atk-score').innerText = atkRoll;
-    document.getElementById('def-score').innerText = defRoll;
-    const resEl = document.getElementById('battle-result');
+      gameEngine.onBattleEnd = (atkRoll, defRoll, result) => {
+        if (netManager.isHost) {
+          netManager.broadcastBattleEnd(atkRoll, defRoll, result);
+        }
 
-    if (result === 'win') {
-        resEl.innerText = '攻撃側の勝利！';
-        resEl.className = 'mt-4 text-xl sm:text-2xl font-black text-emerald-400';
-    } else if (result === 'draw') {
-        resEl.innerText = '引き分け！';
-        resEl.className = 'mt-4 text-xl sm:text-2xl font-black text-amber-400';
-    } else {
-        resEl.innerText = '防衛側の勝利！';
-        resEl.className = 'mt-4 text-xl sm:text-2xl font-black text-red-400';
-    }
+        document.getElementById("atk-score").innerText = atkRoll;
+        document.getElementById("def-score").innerText = defRoll;
+        const resEl = document.getElementById("battle-result");
 
-    setTimeout(() => {
-        document.getElementById('battle-modal').classList.add('hidden');
-    }, CONFIG.battleResultDisplayMs);
-};
+        if (result === "win") {
+          resEl.innerText = "攻撃側の勝利！";
+          resEl.className =
+            "mt-4 text-xl sm:text-2xl font-black text-emerald-400";
+        } else if (result === "draw") {
+          resEl.innerText = "引き分け！";
+          resEl.className =
+            "mt-4 text-xl sm:text-2xl font-black text-amber-400";
+        } else {
+          resEl.innerText = "防衛側の勝利！";
+          resEl.className = "mt-4 text-xl sm:text-2xl font-black text-red-400";
+        }
 
-// UI Element Dynamic Updates
-function updateUIHeader(game) {
-    const statusText = document.getElementById('turn-status-text');
-    const badge = document.getElementById('p2p-badge');
-    const endTurnBtn = document.getElementById('end-turn-btn');
+        setTimeout(() => {
+          document.getElementById("battle-modal").classList.add("hidden");
+        }, CONFIG.battleResultDisplayMs);
+      };
 
-    if (game.phase === 'gameover') {
-        statusText.innerHTML = `<span style="color: ${game.winner.color}">${game.winner.name} の全滅勝利！</span>`;
-        endTurnBtn.classList.add('hidden');
-        return;
-    }
+      // UI Element Dynamic Updates
+      function updateUIHeader(game) {
+        const statusText = document.getElementById("turn-status-text");
+        const badge = document.getElementById("p2p-badge");
+        const endTurnBtn = document.getElementById("end-turn-btn");
 
-    const currPlayer = game.players[game.currentPlayerIndex];
-    const isMyTurn = (netManager.myPlayerIndex === -1) || (netManager.myPlayerIndex === game.currentPlayerIndex);
+        if (game.phase === "gameover") {
+          statusText.innerHTML = `<span style="color: ${game.winner.color}">${game.winner.name} の全滅勝利！</span>`;
+          endTurnBtn.classList.add("hidden");
+          return;
+        }
 
-    statusText.innerHTML = `<span style="color: ${currPlayer.color}">${currPlayer.name} のターン</span>`;
+        const currPlayer = game.players[game.currentPlayerIndex];
+        const isMyTurn =
+          netManager.mode === "local" ||
+          (netManager.connected &&
+            netManager.myPlayerIndex === game.currentPlayerIndex);
 
-    if (netManager.myPlayerIndex !== -1) {
-        badge.classList.remove('hidden');
-        let modeType = netManager.isBroadcastMode ? 'タブ同期' : 'P2P';
-        let roleStr = netManager.isHost ? `${modeType} ホスト` : `${modeType} (P${netManager.myPlayerIndex + 1})`;
-        document.getElementById('p2p-role-text').innerText = roleStr;
-    } else {
-        badge.classList.add('hidden');
-    }
+        statusText.innerHTML = `<span style="color: ${currPlayer.color}">${currPlayer.name} のターン</span>`;
 
-    if (isMyTurn && game.phase === 'playing') {
-        endTurnBtn.classList.remove('hidden');
-        endTurnBtn.disabled = false;
-        endTurnBtn.classList.add('pulse-glow');
-    } else {
-        endTurnBtn.classList.add('hidden');
-        endTurnBtn.disabled = true;
-        endTurnBtn.classList.remove('pulse-glow');
-    }
-}
+        if (netManager.myPlayerIndex !== -1) {
+          badge.classList.remove("hidden");
+          let modeType = netManager.isBroadcastMode ? "タブ同期" : "P2P";
+          let roleStr = netManager.isHost
+            ? `${modeType} ホスト`
+            : `${modeType} (P${netManager.myPlayerIndex + 1})`;
+          document.getElementById("p2p-role-text").innerText = roleStr;
+        } else {
+          badge.classList.add("hidden");
+        }
 
-function updatePlayerLeaderboard(game) {
-    const statsContainer = document.getElementById('player-stats');
-    statsContainer.innerHTML = '';
+        if (isMyTurn && game.phase === "playing") {
+          endTurnBtn.classList.remove("hidden");
+          endTurnBtn.disabled = false;
+          endTurnBtn.classList.add("pulse-glow");
+        } else {
+          endTurnBtn.classList.add("hidden");
+          endTurnBtn.disabled = true;
+          endTurnBtn.classList.remove("pulse-glow");
+        }
+      }
 
-    game.players.forEach(p => {
-        const owned = game.getOwnedTerritories(p.id);
-        if (!owned.length) return;
+      function updatePlayerLeaderboard(game) {
+        const statsContainer = document.getElementById("player-stats");
+        statsContainer.innerHTML = "";
 
-        const maxConn = game.getMaxConnected(p.id);
-        const totalDice = owned.reduce((acc, t) => acc + t.dice, 0);
-        const isCurrent = (p.id === game.currentPlayerIndex);
-        const isMe = (netManager.myPlayerIndex === p.id);
+        game.players.forEach((p) => {
+          const owned = game.getOwnedTerritories(p.id);
+          if (!owned.length) return;
 
-        const row = document.createElement('div');
-        row.className = `flex justify-between items-center gap-2 p-2 rounded-xl border transition ${isCurrent ? 'bg-slate-800/90 border-amber-400/60 shadow-md' : 'bg-slate-950/40 border-slate-800 opacity-80'}`;
+          const maxConn = game.getMaxConnected(p.id);
+          const totalDice = owned.reduce((acc, t) => acc + t.dice, 0);
+          const isCurrent = p.id === game.currentPlayerIndex;
+          const isMe = netManager.myPlayerIndex === p.id;
 
-        let badges = '';
-        if (isMe) {
+          const row = document.createElement("div");
+          row.className = `flex justify-between items-center gap-2 p-2 rounded-xl border transition ${isCurrent ? "bg-slate-800/90 border-amber-400/60 shadow-md" : "bg-slate-950/40 border-slate-800 opacity-80"}`;
+
+          let badges = "";
+          if (isMe) {
             badges += `<span class="bg-amber-400 text-slate-950 text-[10px] font-black px-1.5 py-0.5 rounded ml-1">You</span>`;
-        }
-        if (game.rules.greatPower && maxConn >= game.rules.greatPowerThreshold) {
+          }
+          if (
+            game.rules.greatPower &&
+            maxConn >= game.rules.greatPowerThreshold
+          ) {
             badges += `<span class="bg-red-900/80 text-red-200 text-[10px] px-1.5 py-0.5 rounded border border-red-700 ml-1">大国</span>`;
-        }
-        if (game.rules.smallCountryBonus && maxConn <= game.rules.smallCountryThreshold) {
+          }
+          if (
+            game.rules.smallCountryBonus &&
+            maxConn <= game.rules.smallCountryThreshold
+          ) {
             badges += `<span class="bg-blue-900/80 text-blue-200 text-[10px] px-1.5 py-0.5 rounded border border-blue-700 ml-1">小国</span>`;
-        }
+          }
 
-        row.innerHTML = `
+          row.innerHTML = `
             <div class="flex items-center gap-1.5 truncate">
                 <span class="w-3 h-3 rounded-full shrink-0 shadow-sm" style="background-color: ${p.color}"></span>
                 <span class="truncate font-bold text-xs" style="color: ${p.color}">${p.name}</span>
@@ -1702,329 +2543,463 @@ function updatePlayerLeaderboard(game) {
                 <span class="text-[10px] text-slate-400 block">(${owned.length} 領土 / 🎲${totalDice})</span>
             </div>
         `;
-        statsContainer.appendChild(row);
-    });
-}
+          statsContainer.appendChild(row);
+        });
+      }
 
-let dragStart = { x: 0, y: 0 }, lastTouch = { x: 0, y: 0 }, isDragging = false, touchTime = 0;
-const canvas = document.getElementById('gameCanvas');
+      let dragStart = { x: 0, y: 0 },
+        lastTouch = { x: 0, y: 0 },
+        isDragging = false,
+        touchTime = 0;
+      const canvas = document.getElementById("gameCanvas");
 
-const getPointerPos = (e) => ({
-    x: e.touches ? e.touches[0].clientX : e.clientX,
-    y: e.touches ? e.touches[0].clientY : e.clientY
-});
+      const getPointerPos = (e) => ({
+        x: e.touches ? e.touches[0].clientX : e.clientX,
+        y: e.touches ? e.touches[0].clientY : e.clientY,
+      });
 
-const onPointerDown = (e) => {
-    if (e.type === 'touchstart') touchTime = Date.now();
-    else if (e.type === 'mousedown' && Date.now() - touchTime < 500) return;
+      const onPointerDown = (e) => {
+        if (e.type === "touchstart") touchTime = Date.now();
+        else if (e.type === "mousedown" && Date.now() - touchTime < 500) return;
 
-    if (gameEngine.phase === 'playing') {
-        dragStart = getPointerPos(e);
-        lastTouch = getPointerPos(e);
-        isDragging = true;
-    }
-};
+        if (gameEngine.phase === "playing") {
+          dragStart = getPointerPos(e);
+          lastTouch = getPointerPos(e);
+          isDragging = true;
+        }
+      };
 
-const onPointerMove = (e) => {
-    if (!isDragging || gameEngine.phase !== 'playing' || !canvasRenderer.canDrag) return;
-    if (e.type === 'touchmove') e.preventDefault();
+      const onPointerMove = (e) => {
+        if (
+          !isDragging ||
+          gameEngine.phase !== "playing" ||
+          !canvasRenderer.canDrag
+        )
+          return;
+        if (e.type === "touchmove") e.preventDefault();
 
-    let pos = getPointerPos(e);
-    canvasRenderer.camera.x += pos.x - lastTouch.x;
-    canvasRenderer.camera.y += pos.y - lastTouch.y;
-    lastTouch = pos;
-};
+        let pos = getPointerPos(e);
+        canvasRenderer.camera.x += pos.x - lastTouch.x;
+        canvasRenderer.camera.y += pos.y - lastTouch.y;
+        lastTouch = pos;
+      };
 
-const onPointerUp = (e) => {
-    if (!isDragging) return;
-    isDragging = false;
-    if (gameEngine.phase !== 'playing') return;
+      const onPointerUp = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        if (gameEngine.phase !== "playing") return;
 
-    let pos = e.changedTouches ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY } : getPointerPos(e);
-    if (Math.hypot(pos.x - dragStart.x, pos.y - dragStart.y) < CONFIG.clickTolerance) {
-        let hex = pixelToHex(pos.x - canvasRenderer.camera.x, (pos.y - canvasRenderer.camera.y) / CONFIG.yScale, CONFIG.hexSize);
-        if (hex.col >= 0 && hex.col < CONFIG.gridWidth && hex.row >= 0 && hex.row < CONFIG.gridHeight && gameEngine.hexGrid[hex.col]) {
+        let pos = e.changedTouches
+          ? { x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY }
+          : getPointerPos(e);
+        if (
+          Math.hypot(pos.x - dragStart.x, pos.y - dragStart.y) <
+          CONFIG.clickTolerance
+        ) {
+          let hex = pixelToHex(
+            pos.x - canvasRenderer.camera.x,
+            (pos.y - canvasRenderer.camera.y) / CONFIG.yScale,
+            CONFIG.hexSize,
+          );
+          if (
+            hex.col >= 0 &&
+            hex.col < CONFIG.gridWidth &&
+            hex.row >= 0 &&
+            hex.row < CONFIG.gridHeight &&
+            gameEngine.hexGrid[hex.col]
+          ) {
             let activeHex = gameEngine.hexGrid[hex.col][hex.row];
             if (activeHex && activeHex.active) {
-                if (netManager.myPlayerIndex === -1 || netManager.myPlayerIndex === gameEngine.currentPlayerIndex) {
-                    netManager.sendActionToHost({ type: 'CLICK_HEX', territoryId: activeHex.territoryId });
-                } else {
-                    showToast('相手のターンです', 'warning');
-                }
+              if (
+                netManager.myPlayerIndex === -1 ||
+                netManager.myPlayerIndex === gameEngine.currentPlayerIndex
+              ) {
+                dispatchAction({
+                  type: "CLICK_HEX",
+                  territoryId: activeHex.territoryId,
+                });
+              } else {
+                showToast("相手のターンです", "warning");
+              }
             }
+          }
         }
-    }
-};
+      };
 
-canvas.addEventListener('mousedown', onPointerDown);
-canvas.addEventListener('mousemove', onPointerMove);
-window.addEventListener('mouseup', onPointerUp);
-canvas.addEventListener('touchstart', onPointerDown, { passive: false });
-canvas.addEventListener('touchmove', onPointerMove, { passive: false });
-window.addEventListener('touchend', onPointerUp, { passive: false });
+      canvas.addEventListener("mousedown", onPointerDown);
+      canvas.addEventListener("mousemove", onPointerMove);
+      window.addEventListener("mouseup", onPointerUp);
+      canvas.addEventListener("touchstart", onPointerDown, { passive: false });
+      canvas.addEventListener("touchmove", onPointerMove, { passive: false });
+      window.addEventListener("touchend", onPointerUp, { passive: false });
 
-netManager.onActionReceived = (action, playerIndex) => {
-    if (action.type === 'CLICK_HEX') {
-        gameEngine.handleTerritoryClick(action.territoryId, playerIndex);
-    } else if (action.type === 'END_TURN') {
-        gameEngine.endTurn(playerIndex);
-    }
-};
+      netManager.onActionReceived = (action, playerIndex) => {
+        if (action.type === "CLICK_HEX") {
+          gameEngine.handleTerritoryClick(action.territoryId, playerIndex);
+        } else if (action.type === "END_TURN") {
+          gameEngine.endTurn(playerIndex);
+        }
+      };
 
-netManager.onStateSyncReceived = (state) => {
-    gameEngine.importState(state);
-};
+      netManager.onStateSyncReceived = (state) => {
+        gameEngine.importState(state);
+      };
 
-// Mode Selection Event Listeners
-document.getElementById('start-local-btn').addEventListener('click', () => {
-    document.getElementById('local-player-modal').classList.remove('hidden');
-});
+      function dispatchAction(action) {
+        if (netManager.mode === "local") {
+          netManager.onActionReceived(action, gameEngine.currentPlayerIndex);
+          return;
+        }
+        if (!netManager.connected) {
+          showToast("接続が切断されています。再接続を待っています", "warning");
+          return;
+        }
+        netManager.sendActionToHost(action);
+      }
 
-document.getElementById('cancel-local-btn').addEventListener('click', () => {
-    document.getElementById('local-player-modal').classList.add('hidden');
-});
+      // Mode Selection Event Listeners
+      document
+        .getElementById("start-local-btn")
+        .addEventListener("click", () => {
+          document
+            .getElementById("local-player-modal")
+            .classList.remove("hidden");
+        });
 
-document.querySelectorAll('.local-player-select-btn').forEach(btn => {
-    btn.addEventListener('click', (e) => {
-        let count = parseInt(e.target.dataset.players, 10);
-        let rules = getSelectedRulesFromUI();
-        
-        netManager.disconnect();
-        gameEngine.startGame(count, rules);
+      document
+        .getElementById("cancel-local-btn")
+        .addEventListener("click", () => {
+          document.getElementById("local-player-modal").classList.add("hidden");
+        });
 
-        document.getElementById('mode-select-screen').classList.add('hidden');
-        document.getElementById('local-player-modal').classList.add('hidden');
+      document.querySelectorAll(".local-player-select-btn").forEach((btn) => {
+        btn.addEventListener("click", (e) => {
+          let count = parseInt(e.target.dataset.players, 10);
+          let rules = getSelectedRulesFromUI();
+
+          netManager.disconnect();
+          gameEngine.startGame(count, rules);
+
+          document.getElementById("mode-select-screen").classList.add("hidden");
+          document.getElementById("local-player-modal").classList.add("hidden");
+          showGameUI();
+          canvasRenderer.start();
+        });
+      });
+
+      document
+        .getElementById("start-online-btn")
+        .addEventListener("click", () => {
+          document.getElementById("mode-select-screen").classList.add("hidden");
+          document
+            .getElementById("online-lobby-screen")
+            .classList.remove("hidden");
+        });
+
+      document
+        .getElementById("back-to-mode-btn")
+        .addEventListener("click", () => {
+          netManager.disconnect();
+          document
+            .getElementById("online-lobby-screen")
+            .classList.add("hidden");
+          document
+            .getElementById("mode-select-screen")
+            .classList.remove("hidden");
+        });
+
+      document
+        .getElementById("create-room-btn")
+        .addEventListener("click", () => {
+          const nickName =
+            document.getElementById("player-nickname-input").value.trim() ||
+            "ホスト";
+          netManager.createRoom(nickName, (success, code) => {
+            if (success) {
+              document
+                .getElementById("lobby-connect-section")
+                .classList.add("hidden");
+              document
+                .getElementById("lobby-active-section")
+                .classList.remove("hidden");
+              document.getElementById("room-code-display").innerText = code;
+              document
+                .getElementById("host-lobby-controls")
+                .classList.remove("hidden");
+              document
+                .getElementById("client-lobby-controls")
+                .classList.add("hidden");
+              document.getElementById("lobby-role-badge").innerText = "ホスト";
+
+              updateLobbyPlayerList(netManager.playersList);
+              showToast(`ルーム ${code} を作成しました`);
+            }
+          });
+        });
+
+      document.getElementById("join-room-btn").addEventListener("click", () => {
+        const code = document.getElementById("room-code-input").value.trim();
+        const nickName =
+          document.getElementById("player-nickname-input").value.trim() ||
+          "ゲスト";
+        if (!code || code.length < 4) {
+          showToast("有効なルームコードを入力してください", "warning");
+          return;
+        }
+
+        netManager.joinRoom(code, nickName, (success, resCode) => {
+          if (success) {
+            document
+              .getElementById("lobby-connect-section")
+              .classList.add("hidden");
+            document
+              .getElementById("lobby-active-section")
+              .classList.remove("hidden");
+            document.getElementById("room-code-display").innerText = resCode;
+            document
+              .getElementById("host-lobby-controls")
+              .classList.add("hidden");
+            document
+              .getElementById("client-lobby-controls")
+              .classList.remove("hidden");
+            document.getElementById("lobby-role-badge").innerText =
+              `ゲスト (P${netManager.myPlayerIndex + 1})`;
+          } else {
+            showToast(resCode || "ルーム接続に失敗しました", "error");
+          }
+        });
+      });
+
+      document
+        .getElementById("copy-room-code-btn")
+        .addEventListener("click", () => {
+          const code = document.getElementById("room-code-display").innerText;
+          const tempInput = document.createElement("input");
+          tempInput.value = code;
+          document.body.appendChild(tempInput);
+          tempInput.select();
+          document.execCommand("copy");
+          document.body.removeChild(tempInput);
+          showToast("ルームコードをクリップボードにコピーしました！");
+        });
+
+      document
+        .getElementById("leave-lobby-btn")
+        .addEventListener("click", () => {
+          netManager.disconnect();
+          document
+            .getElementById("lobby-active-section")
+            .classList.add("hidden");
+          document
+            .getElementById("lobby-connect-section")
+            .classList.remove("hidden");
+        });
+
+      netManager.onLobbyUpdated = (data) => {
+        updateLobbyPlayerList(data.players);
+      };
+
+      netManager.onGameStartReceived = (data) => {
+        document.getElementById("online-lobby-screen").classList.add("hidden");
         showGameUI();
+        canvasRenderer.resize();
         canvasRenderer.start();
-    });
-});
+      };
 
-document.getElementById('start-online-btn').addEventListener('click', () => {
-    document.getElementById('mode-select-screen').classList.add('hidden');
-    document.getElementById('online-lobby-screen').classList.remove('hidden');
-});
+      netManager.onStateSyncReceived = (state) => {
+        gameEngine.importState(state);
+        canvasRenderer.resize();
+      };
 
-document.getElementById('back-to-mode-btn').addEventListener('click', () => {
-    netManager.disconnect();
-    document.getElementById('online-lobby-screen').classList.add('hidden');
-    document.getElementById('mode-select-screen').classList.remove('hidden');
-});
+      function updateLobbyPlayerList(players) {
+        const listEl = document.getElementById("lobby-player-list");
+        listEl.innerHTML = "";
+        document.getElementById("connected-count").innerText = players.length;
 
-document.getElementById('create-room-btn').addEventListener('click', () => {
-    const nickName = document.getElementById('player-nickname-input').value.trim() || 'ホスト';
-    netManager.createRoom(nickName, (success, code) => {
-        if (success) {
-            document.getElementById('lobby-connect-section').classList.add('hidden');
-            document.getElementById('lobby-active-section').classList.remove('hidden');
-            document.getElementById('room-code-display').innerText = code;
-            document.getElementById('host-lobby-controls').classList.remove('hidden');
-            document.getElementById('client-lobby-controls').classList.add('hidden');
-            document.getElementById('lobby-role-badge').innerText = 'ホスト';
-
-            updateLobbyPlayerList(netManager.playersList);
-            showToast(`ルーム ${code} を作成しました`);
-        }
-    });
-});
-
-document.getElementById('join-room-btn').addEventListener('click', () => {
-    const code = document.getElementById('room-code-input').value.trim();
-    const nickName = document.getElementById('player-nickname-input').value.trim() || 'ゲスト';
-    if (!code || code.length < 4) {
-        showToast('有効なルームコードを入力してください', 'warning');
-        return;
-    }
-
-    netManager.joinRoom(code, nickName, (success, resCode) => {
-        if (success) {
-            document.getElementById('lobby-connect-section').classList.add('hidden');
-            document.getElementById('lobby-active-section').classList.remove('hidden');
-            document.getElementById('room-code-display').innerText = resCode;
-            document.getElementById('host-lobby-controls').classList.add('hidden');
-            document.getElementById('client-lobby-controls').classList.remove('hidden');
-            document.getElementById('lobby-role-badge').innerText = `ゲスト (P${netManager.myPlayerIndex + 1})`;
-        } else {
-            showToast(resCode || 'ルーム接続に失敗しました', 'error');
-        }
-    });
-});
-
-document.getElementById('copy-room-code-btn').addEventListener('click', () => {
-    const code = document.getElementById('room-code-display').innerText;
-    const tempInput = document.createElement('input');
-    tempInput.value = code;
-    document.body.appendChild(tempInput);
-    tempInput.select();
-    document.execCommand('copy');
-    document.body.removeChild(tempInput);
-    showToast('ルームコードをクリップボードにコピーしました！');
-});
-
-document.getElementById('leave-lobby-btn').addEventListener('click', () => {
-    netManager.disconnect();
-    document.getElementById('lobby-active-section').classList.add('hidden');
-    document.getElementById('lobby-connect-section').classList.remove('hidden');
-});
-
-netManager.onLobbyUpdated = (data) => {
-    updateLobbyPlayerList(data.players);
-};
-
-netManager.onGameStartReceived = (data) => {
-    document.getElementById('online-lobby-screen').classList.add('hidden');
-    showGameUI();
-    canvasRenderer.resize();
-    canvasRenderer.start();
-};
-
-netManager.onStateSyncReceived = (state) => {
-    gameEngine.importState(state);
-    canvasRenderer.resize();
-};
-
-function updateLobbyPlayerList(players) {
-    const listEl = document.getElementById('lobby-player-list');
-    listEl.innerHTML = '';
-    document.getElementById('connected-count').innerText = players.length;
-
-    players.forEach((p, idx) => {
-        const item = document.createElement('div');
-        item.className = 'flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800';
-        item.innerHTML = `
+        players.forEach((p, idx) => {
+          const item = document.createElement("div");
+          item.className =
+            "flex items-center justify-between p-3 bg-slate-950 rounded-xl border border-slate-800";
+          item.innerHTML = `
             <div class="flex items-center gap-3">
                 <span class="w-4 h-4 rounded-full shadow-sm" style="background-color: ${CONFIG.colors[idx]}"></span>
-                <span class="text-sm font-bold text-white">${p.name} ${idx === 0 ? '(ホスト)' : ''}</span>
+                <span class="text-sm font-bold text-white">${p.name} ${idx === 0 ? "(ホスト)" : ""}</span>
             </div>
             <span class="text-xs bg-slate-800 text-slate-300 px-2.5 py-1 rounded-md font-mono font-bold">P${idx + 1}</span>
         `;
-        listEl.appendChild(item);
-    });
+          listEl.appendChild(item);
+        });
 
-    const startBtn = document.getElementById('start-online-game-btn');
-    if (startBtn) {
-        startBtn.disabled = players.length < 2;
-    }
-}
+        const startBtn = document.getElementById("start-online-game-btn");
+        if (startBtn) {
+          startBtn.disabled = players.length < 2;
+        }
+      }
 
-// Host Online Game Start Event
-document.getElementById('start-online-game-btn').addEventListener('click', () => {
-    if (netManager.playersList.length < 2) {
-        showToast('対戦開始には最低2名の参加が必要です', 'warning');
-        return;
-    }
+      // Host Online Game Start Event
+      document
+        .getElementById("start-online-game-btn")
+        .addEventListener("click", () => {
+          if (netManager.playersList.length < 2) {
+            showToast("対戦開始には最低2名の参加が必要です", "warning");
+            return;
+          }
 
-    let rules = getSelectedRulesFromUI();
-    netManager.broadcastStartGame(rules);
-    gameEngine.startGame(netManager.playersList.length, rules, netManager.playersList.map(p => p.name));
+          let rules = getSelectedRulesFromUI();
+          netManager.broadcastStartGame(rules);
+          gameEngine.startGame(
+            netManager.playersList.length,
+            rules,
+            netManager.playersList.map((p) => p.name),
+          );
 
-    document.getElementById('online-lobby-screen').classList.add('hidden');
-    showGameUI();
-    canvasRenderer.start();
-});
+          document
+            .getElementById("online-lobby-screen")
+            .classList.add("hidden");
+          showGameUI();
+          canvasRenderer.start();
+        });
 
-document.getElementById('end-turn-btn').addEventListener('click', () => {
-    netManager.sendActionToHost({ type: 'END_TURN' });
-});
+      document.getElementById("end-turn-btn").addEventListener("click", () => {
+        dispatchAction({ type: "END_TURN" });
+      });
 
-document.getElementById('quit-game-btn').addEventListener('click', () => {
-    document.getElementById('quit-modal').classList.remove('hidden');
-});
+      document.getElementById("quit-game-btn").addEventListener("click", () => {
+        document.getElementById("quit-modal").classList.remove("hidden");
+      });
 
-document.getElementById('confirm-quit-btn').addEventListener('click', () => {
-    netManager.disconnect();
-    document.getElementById('quit-modal').classList.add('hidden');
-    hideGameUI();
-    document.getElementById('mode-select-screen').classList.remove('hidden');
-});
+      document
+        .getElementById("confirm-quit-btn")
+        .addEventListener("click", () => {
+          netManager.disconnect();
+          document.getElementById("quit-modal").classList.add("hidden");
+          hideGameUI();
+          document
+            .getElementById("mode-select-screen")
+            .classList.remove("hidden");
+        });
 
-document.getElementById('cancel-quit-btn').addEventListener('click', () => {
-    document.getElementById('quit-modal').classList.add('hidden');
-});
+      document
+        .getElementById("cancel-quit-btn")
+        .addEventListener("click", () => {
+          document.getElementById("quit-modal").classList.add("hidden");
+        });
 
-// Rules Settings Helper Functions
-function getSelectedRulesFromUI() {
-    let rules = {};
-    document.querySelectorAll('.rule-toggle').forEach(el => rules[el.dataset.rule] = el.checked);
-    rules.greatPowerThreshold = parseInt(document.getElementById('great-power-threshold').value, 10) || 16;
-    rules.smallCountryThreshold = parseInt(document.getElementById('small-country-threshold').value, 10) || 5;
-    return rules;
-}
+      // Rules Settings Helper Functions
+      function getSelectedRulesFromUI() {
+        let rules = {};
+        document
+          .querySelectorAll(".rule-toggle")
+          .forEach((el) => (rules[el.dataset.rule] = el.checked));
+        rules.greatPowerThreshold =
+          parseInt(
+            document.getElementById("great-power-threshold").value,
+            10,
+          ) || 16;
+        rules.smallCountryThreshold =
+          parseInt(
+            document.getElementById("small-country-threshold").value,
+            10,
+          ) || 5;
+        return rules;
+      }
 
-function syncRulesToUI(rules) {
-    if (!rules) return;
-    document.querySelectorAll('.rule-toggle').forEach(el => {
-        const key = el.dataset.rule;
-        if (key in rules) el.checked = rules[key];
-    });
-    if (rules.greatPowerThreshold !== undefined) {
-        document.getElementById('great-power-threshold').value = rules.greatPowerThreshold;
-    }
-    if (rules.smallCountryThreshold !== undefined) {
-        document.getElementById('small-country-threshold').value = rules.smallCountryThreshold;
-    }
-}
+      function syncRulesToUI(rules) {
+        if (!rules) return;
+        document.querySelectorAll(".rule-toggle").forEach((el) => {
+          const key = el.dataset.rule;
+          if (key in rules) el.checked = rules[key];
+        });
+        if (rules.greatPowerThreshold !== undefined) {
+          document.getElementById("great-power-threshold").value =
+            rules.greatPowerThreshold;
+        }
+        if (rules.smallCountryThreshold !== undefined) {
+          document.getElementById("small-country-threshold").value =
+            rules.smallCountryThreshold;
+        }
+      }
 
-function openSettingsModal(readOnly = false) {
-    // Sync UI controls with current engine rules
-    syncRulesToUI(gameEngine.rules);
+      function openSettingsModal(readOnly = false) {
+        // Sync UI controls with current engine rules
+        syncRulesToUI(gameEngine.rules);
 
-    const noticeEl = document.getElementById('settings-readonly-notice');
-    const titleText = document.getElementById('settings-title-text');
+        const noticeEl = document.getElementById("settings-readonly-notice");
+        const titleText = document.getElementById("settings-title-text");
 
-    if (readOnly) {
-        noticeEl.classList.remove('hidden');
-        titleText.innerText = 'ルール確認';
-    } else {
-        noticeEl.classList.add('hidden');
-        titleText.innerText = 'ローカルルール設定';
-    }
-
-    // Toggle disabled state for form elements
-    document.querySelectorAll('.rule-toggle, #great-power-threshold, #small-country-threshold').forEach(input => {
-        input.disabled = readOnly;
         if (readOnly) {
-            input.classList.add('opacity-60', 'cursor-not-allowed');
+          noticeEl.classList.remove("hidden");
+          titleText.innerText = "ルール確認";
         } else {
-            input.classList.remove('opacity-60', 'cursor-not-allowed');
+          noticeEl.classList.add("hidden");
+          titleText.innerText = "ローカルルール設定";
         }
-    });
 
-    document.getElementById('settings-modal').classList.remove('hidden');
-}
+        // Toggle disabled state for form elements
+        document
+          .querySelectorAll(
+            ".rule-toggle, #great-power-threshold, #small-country-threshold",
+          )
+          .forEach((input) => {
+            input.disabled = readOnly;
+            if (readOnly) {
+              input.classList.add("opacity-60", "cursor-not-allowed");
+            } else {
+              input.classList.remove("opacity-60", "cursor-not-allowed");
+            }
+          });
 
-document.getElementById('open-local-settings-btn').addEventListener('click', () => {
-    openSettingsModal(false);
-});
-document.getElementById('open-lobby-rules-btn').addEventListener('click', () => {
-    // Only Host can modify rules in online lobby
-    openSettingsModal(!netManager.isHost);
-});
-document.getElementById('in-game-settings-btn').addEventListener('click', () => {
-    // Game in progress -> Always Read-Only
-    openSettingsModal(true);
-});
-document.getElementById('close-settings-btn').addEventListener('click', () => {
-    // Save updated rules only if editable and before game starts
-    const thresholdInput = document.getElementById('great-power-threshold');
-    if (!thresholdInput.disabled) {
-        gameEngine.rules = { ...gameEngine.rules, ...getSelectedRulesFromUI() };
-        if (netManager.isHost && netManager.playersList.length > 0) {
-            netManager.broadcastLobbyState();
-        }
-    }
-    document.getElementById('settings-modal').classList.add('hidden');
-});
+        document.getElementById("settings-modal").classList.remove("hidden");
+      }
 
-function showGameUI() {
-    document.getElementById('in-game-settings-btn').classList.remove('hidden');
-    document.getElementById('quit-game-btn').classList.remove('hidden');
-}
+      document
+        .getElementById("open-local-settings-btn")
+        .addEventListener("click", () => {
+          openSettingsModal(false);
+        });
+      document
+        .getElementById("open-lobby-rules-btn")
+        .addEventListener("click", () => {
+          // Only Host can modify rules in online lobby
+          openSettingsModal(!netManager.isHost);
+        });
+      document
+        .getElementById("in-game-settings-btn")
+        .addEventListener("click", () => {
+          // Game in progress -> Always Read-Only
+          openSettingsModal(true);
+        });
+      document
+        .getElementById("close-settings-btn")
+        .addEventListener("click", () => {
+          // Save updated rules only if editable and before game starts
+          const thresholdInput = document.getElementById(
+            "great-power-threshold",
+          );
+          if (!thresholdInput.disabled) {
+            gameEngine.rules = {
+              ...gameEngine.rules,
+              ...getSelectedRulesFromUI(),
+            };
+            if (netManager.isHost && netManager.playersList.length > 0) {
+              netManager.broadcastLobbyState();
+            }
+          }
+          document.getElementById("settings-modal").classList.add("hidden");
+        });
 
-function hideGameUI() {
-    document.getElementById('in-game-settings-btn').classList.add('hidden');
-    document.getElementById('quit-game-btn').classList.add('hidden');
-    document.getElementById('end-turn-btn').classList.add('hidden');
-}
-</script>
-</body>
+      function showGameUI() {
+        document
+          .getElementById("in-game-settings-btn")
+          .classList.remove("hidden");
+        document.getElementById("quit-game-btn").classList.remove("hidden");
+      }
+
+      function hideGameUI() {
+        document.getElementById("in-game-settings-btn").classList.add("hidden");
+        document.getElementById("quit-game-btn").classList.add("hidden");
+        document.getElementById("end-turn-btn").classList.add("hidden");
+      }
+    </script>
+  </body>
 </html>
