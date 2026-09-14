@@ -31,39 +31,46 @@ export class Renderer {
     }
 
     fitMapToScreen(){
-        // 画面内の各方向の余白（マージン）を設定
-        let leftMargin = 20;     // 左端はUIがないので少しだけ空ける
-        let rightMargin = 240;   // 右端はPlayers Infoなどを避けるために広く空ける
-        let topMargin = 40;      // 上端もUIがないので少しだけ空ける
-        let bottomMargin = 120;  // 下端はボタン類を避けるために空ける
+        // 余白を少し設定（画面が小さい場合はドラッグで移動するため小さめでOK）
+        let padding = 20; 
 
         // マップを最大限広げられる「描画可能領域」を計算
-        let availableWidth = this.canvas.width - leftMargin - rightMargin;
-        let availableHeight = this.canvas.height - topMargin - bottomMargin;
+        let availableWidth = this.canvas.width - padding * 2;
+        let availableHeight = this.canvas.height - padding * 2;
 
         // 画面が極端に狭い場合のフェイルセーフ
         if (availableWidth < 100) availableWidth = 100;
         if (availableHeight < 100) availableHeight = 100;
 
-        let Y_SCALE=0.75; // 斜め視点の潰し具合（0.6倍）
-        let widthScale=availableWidth/(CONFIG.gridWidth*1.5+.5);
-        let heightScale=availableHeight/(CONFIG.gridHeight*Math.sqrt(3)*Y_SCALE);
-        CONFIG.hexSize=Math.min(widthScale,heightScale);
-        let metrics=getHexMetrics(CONFIG.hexSize);
-        let mapWidth=CONFIG.gridWidth * metrics.horizDist+CONFIG.hexSize*.5;
-        let mapHeight=(CONFIG.gridHeight * metrics.vertDist + metrics.vertDist*.5)*Y_SCALE;
-        this.camera.x=20+(availableWidth-mapWidth)/2; 
-        this.camera.y=40+(availableHeight-mapHeight)/2;
+        let widthScale = availableWidth / (CONFIG.gridWidth * 1.5 + 0.5);
+        let heightScale = availableHeight / (CONFIG.gridHeight * Math.sqrt(3) * CONFIG.yScale);
+        
+        // 【変更】hexSize に下限（例: 12）を設定し、画面が小さすぎる場合は縮小を止める
+        CONFIG.hexSize = Math.max(12, Math.min(widthScale, heightScale));
+        
+        let metrics = getHexMetrics(CONFIG.hexSize);
+        let mapWidth = CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
+        let mapHeight = (CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5) * CONFIG.yScale;
+        
+        // 【変更】UI用の固定マージン（20, 40等）を排除し、キャンバス全体の完全な中央に配置
+        this.camera.x = (this.canvas.width - mapWidth) / 2 + padding;
+        this.camera.y = (this.canvas.height - mapHeight) / 2 + padding;
+
+        this.canDrag = (mapWidth > this.canvas.width) || (mapHeight > this.canvas.height);
     }
+
+    clear() {
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    }
+
     render(){
         if(this.game.phase===`start`)return;
-        let Y_SCALE=0.75;
         this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
         
         // 1. マップ床面を斜めに倒して描画
         this.ctx.save();
         this.ctx.translate(this.camera.x,this.camera.y);
-        this.ctx.scale(1,Y_SCALE);
+        this.ctx.scale(1,CONFIG.yScale);
         this.game.territories.forEach(t=>{
             let baseColor=t.id===this.game.selectedTerritoryId?`#323232`:this.game.players[t.owner].color;
             t.hexes.forEach(h=>{
@@ -80,7 +87,7 @@ export class Renderer {
         this.ctx.translate(this.camera.x,this.camera.y);
         this.game.territories.forEach(t=>{
             let n=getHexCenter(t.centerHex.c,t.centerHex.r,CONFIG.hexSize);
-            this.drawDiceStack(n.x, n.y * Y_SCALE, t.dice, this.game.players[t.owner].color);
+            this.drawDiceStack(n.x, n.y * CONFIG.yScale, t.dice, this.game.players[t.owner].color);
         });
         this.ctx.restore();
     }
@@ -284,7 +291,7 @@ export class Renderer {
     }
 */
     drawDiceStack(x, y, count, color) {
-        let width = Math.max(CONFIG.hexSize * .68, 6);
+        let width = Math.max(CONFIG.hexSize * .72, 6);
         let height = width * .75;
         let stepH = width * 1;
         let stepY = stepH * 1;
@@ -316,7 +323,7 @@ export class Renderer {
             let leftColor = this.shadeColor(color, -5);
             let rightColor = this.shadeColor(color, -25);
             
-            this.ctx.lineWidth = 1;
+            this.ctx.lineWidth = 2;
             this.ctx.lineJoin = `round`;
             this.ctx.strokeStyle = `rgba(0,0,0,0.4)`;
             
@@ -357,7 +364,7 @@ export class Renderer {
             let dots = [];
             pipNum === 1 ? dots = [[0, 0]] : pipNum === 2 ? dots = [[-.4, -.4], [.4, .4]] : pipNum === 3 ? dots = [[-.4, -.4], [0, 0], [.4, .4]] : pipNum === 4 ? dots = [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]] : pipNum === 5 ? dots = [[-.4, -.4], [.4, -.4], [0, 0], [-.4, .4], [.4, .4]] : pipNum === 6 && (dots = [[-.4, -.4], [-.4, 0], [-.4, .4], [.4, -.4], [.4, 0], [.4, .4]]);
             
-            let pipRadius = pipNum === 1 ? width * .22 : width * .12;
+            let pipRadius = pipNum === 1 ? width * .32 : width * .18;
             let dotColor = pipNum === 1 ? `#000000` : `#000000`;
             dots.forEach(pt => {
                 let n_x = tx + (pt[0] - pt[1]) * (width * .45), r_y = topCy + (pt[0] + pt[1]) * (height * .45);
@@ -372,6 +379,7 @@ export class Renderer {
             });
         }
         
+        /*
         // 合計数のテキスト位置を、一番高い列に合わせて調整
         let maxStackIdx = isDouble ? Math.max(3, count - 5) : count - 1;
         let textL = startY - maxStackIdx * stepY - stepH - height - 4;
@@ -383,6 +391,7 @@ export class Renderer {
         this.ctx.shadowBlur = 4; 
         this.ctx.fillText(count, x, textL); 
         this.ctx.shadowBlur = 0;
+        */
     }
 
     shadeColor(col, pct) {

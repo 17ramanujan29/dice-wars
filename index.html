@@ -9,16 +9,17 @@
 </head>
 <body>
 <div id="game-container">
-    <div id="canvas-container">
-        <canvas id="gameCanvas"></canvas>
-    </div>
-
     <div id="ui-layer">
-        <!-- justify-between を justify-end に変更し、右側に寄せる -->
-        <div class="flex justify-end items-start">
-            <!-- flex-col で縦並びにし、items-end で右端を揃える -->
-            <div class="flex flex-col items-end">
-                <!-- margin をインラインスタイルで上書きして隙間を調整 -->
+        <!-- 上段: マップ(canvas)とPlayers Info。 min-h-0 を設定してはみ出しを防ぐ -->
+        <div class="flex flex-row flex-grow w-full min-h-0">
+            
+            <!-- マップを表示する canvas-container -->
+            <div id="canvas-container" class="flex-grow relative pointer-events-auto h-full overflow-hidden">
+                <canvas id="gameCanvas"></canvas>
+            </div>
+
+            <!-- Players Info等 (pointer-events-auto で操作可能に、オーバーフロー時はスクロール) -->
+            <div class="flex flex-col items-end pointer-events-auto p-2 overflow-y-auto shrink-0 z-10">
                 <div id="turn-info" class="ui-panel text-xl font-bold min-w-[200px] text-center" style="margin-bottom: 0.25rem;">Waiting to start...</div>
                 
                 <div class="ui-panel min-w-[200px]" style="margin-top: 0.25rem;">
@@ -28,7 +29,8 @@
             </div>
         </div>
         
-        <div class="flex justify-end p-4 gap-4">
+        <!-- 下段: ボタンを表示するdiv。 shrink-0 で潰れないように確実に表示する -->
+        <div class="flex justify-end p-4 gap-4 shrink-0 pointer-events-auto z-10">
             <button id="in-game-settings-btn" class="ui-panel bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-gray-500">設定確認</button>
             <button id="quit-game-btn" class="ui-panel bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-red-500">ゲーム終了</button>
             <button id="end-turn-btn" class="ui-panel bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-yellow-400">End Turn</button>

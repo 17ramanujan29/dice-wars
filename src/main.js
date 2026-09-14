@@ -7,12 +7,17 @@ const game = new GameController();
 const renderer = new Renderer('gameCanvas', game);
 
 // UI更新バインディング
-// UI更新バインディング
 game.onStateChange = (state) => {
     if (state.phase === 'gameover') {
-        document.getElementById('turn-info').innerHTML = `<span style="color: ${state.winner.color}; font-size: 2rem;">${state.winner.name} Wins!</span><button id="restart-btn" class="ui-panel bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded mt-4">Play Again</button>`;
+        document.getElementById('turn-info').innerHTML = `
+            <span style="color: ${state.winner.color}; font-size: 2rem;">${state.winner.name} Wins!</span>
+            <button id="restart-btn" class="ui-panel bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded mt-4">Play Again</button>
+        `;
         document.getElementById('end-turn-btn').style.display = 'none';
-        document.getElementById('restart-btn').onclick = () => location.reload();
+        // 変更: リロードではなくスタート画面に戻す
+        document.getElementById('restart-btn').onclick = () => {
+            returnToStartScreen();
+        };
         return;
     }
     
@@ -78,6 +83,8 @@ game.onBattleEnd = (atkScore, defScore, type) => {
 
 // 入力イベント設定
 let startPos = {x: 0, y: 0};
+let lastPos = {x: 0, y: 0}; // 追加: ドラッグ中の直前の座標
+let isDragging = false;     // 追加: ドラッグ中かどうかのフラグ
 let lastTouchTime = 0;
 
 const canvas = document.getElementById('gameCanvas');
@@ -92,9 +99,28 @@ const handlePointerDown = e => {
     }
     if (game.phase === 'playing') {
         startPos = getPos(e);
+        lastPos = getPos(e); // 追加: 初期位置を記録
+        isDragging = true;   // 追加: ドラッグ開始
     }
 };
+
+// ドラッグ操作ハンドラ
+const handlePointerMove = e => {
+    // 【変更】renderer.canDrag が false の場合（全体が表示されている場合）は処理を抜ける
+    if (!isDragging || game.phase !== 'playing' || !renderer.canDrag) return;
+    
+    if (e.type === 'touchmove') e.preventDefault(); // スマホのスクロールを防止
+
+    const currentPos = getPos(e);
+    // カメラ位置を更新 (移動量を加算)
+    renderer.camera.x += (currentPos.x - lastPos.x);
+    renderer.camera.y += (currentPos.y - lastPos.y);
+    lastPos = currentPos;
+};
+
 const handlePointerUp = (e) => {
+    isDragging = false; // 追加: ドラッグ終了
+    
     // タッチ直後の擬似マウスイベントを無視
     if (e.type === 'mouseup') {
         if (Date.now() - lastTouchTime < 500) return;
@@ -105,29 +131,67 @@ const handlePointerUp = (e) => {
     if (game.phase !== 'playing') return;
 
     const pos = e.changedTouches ? {x: e.changedTouches[0].clientX, y: e.changedTouches[0].clientY} : getPos(e);
+    
+    // ドラッグした距離が clickTolerance 未満の場合のみクリック(領土選択)判定とする
     if (Math.hypot(pos.x - startPos.x, pos.y - startPos.y) < CONFIG.clickTolerance) {
-        /*
-        const hexCoords = pixelToHex(pos.x - renderer.camera.x, pos.y - renderer.camera.y, CONFIG.hexSize);
-        if(hexCoords.col >= 0 && hexCoords.col < CONFIG.gridWidth && hexCoords.row >= 0 && hexCoords.row < CONFIG.gridHeight) {
-            const hex = game.hexGrid[hexCoords.col][hexCoords.row];
-            hex && hex.active ? game.handleTerritoryClick(hex.territoryId) : (game.selectedTerritoryId = null);
-        }*/
-
-        let Y_SCALE = 0.75;
         let localX = pos.x - renderer.camera.x;
-        let localY = (pos.y - renderer.camera.y) / Y_SCALE; // 傾いたY軸座標を補正
+        let localY = (pos.y - renderer.camera.y) / CONFIG.yScale; // 傾いたY軸座標を補正
         let t_hex = pixelToHex(localX, localY, CONFIG.hexSize);
         if (t_hex.col >= 0 && t_hex.col < CONFIG.gridWidth && t_hex.row >= 0 && t_hex.row < CONFIG.gridHeight) {
             let e_hex = game.hexGrid[t_hex.col][t_hex.row];
             e_hex && e_hex.active ? game.handleTerritoryClick(e_hex.territoryId) : game.selectedTerritoryId = null;
         }
-
     }
 };
 
+// --- 戦績・対戦履歴の保存関数 (localStorage を利用) ---
+function saveGameResult(status) {
+    // 既存の履歴を取得（なければ空配列）
+    const history = JSON.parse(localStorage.getItem('dice_wars_history') || '[]');
+    
+    // 保存するデータ構造
+    const record = {
+        timestamp: new Date().toLocaleString(),
+        status: status, // 'quit' (途中終了) または 'gameover' (決着)
+        playersCount: game.players.length,
+        winner: game.winner ? game.winner.name : null,
+        rules: { ...game.rules }
+    };
+
+    history.push(record);
+    // localStorage に JSON 文字列として保存
+    localStorage.setItem('dice_wars_history', JSON.stringify(history));
+    console.log("戦績を保存しました:", record);
+}
+
+// --- リロードせずにスタート画面へ戻る関数 ---
+function returnToStartScreen() {
+    // 1. ゲームコントローラーのフェーズをリセット
+    game.phase = 'start';
+    game.selectedTerritoryId = null;
+
+    renderer.clear();
+
+    // 2. モーダル類を非表示
+    document.getElementById('quit-modal').classList.add('hidden');
+    document.getElementById('battle-modal').style.display = 'none';
+    document.getElementById('settings-modal').classList.add('hidden');
+
+    // 3. インゲーム用のUIボタンを非表示
+    document.getElementById('end-turn-btn').classList.add('hidden');
+    document.getElementById('quit-game-btn').classList.add('hidden');
+    document.getElementById('in-game-settings-btn').classList.add('hidden');
+
+    // 4. スタート画面を再表示
+    document.getElementById('start-screen').style.display = 'flex';
+}
+
+// イベントリスナーの登録（mousemove と touchmove を追加）
 canvas.addEventListener('mousedown', handlePointerDown); 
+canvas.addEventListener('mousemove', handlePointerMove); 
 window.addEventListener('mouseup', handlePointerUp);
 canvas.addEventListener('touchstart', handlePointerDown, {passive: false}); 
+canvas.addEventListener('touchmove', handlePointerMove, {passive: false}); 
 window.addEventListener('touchend', handlePointerUp, {passive: false});
 
 // ボタンイベント設定
@@ -158,10 +222,15 @@ document.getElementById(`quit-game-btn`).addEventListener(`click`, () => {
     document.getElementById(`quit-modal`).classList.remove(`hidden`);
 });
 
-// モーダル内の「はい」ボタンを押したらリロード（ゲーム終了）
-document.getElementById(`confirm-quit-btn`).addEventListener(`click`, () => {
-    location.reload();
+// モーダル内の「はい」ボタンを押したときの処理
+document.getElementById('confirm-quit-btn').addEventListener('click', () => {
+    // 1. 戦績を一時保存/保存処理
+    saveGameResult('quit');
+
+    // 2. ページリロードではなく、スタート画面へ復帰
+    returnToStartScreen();
 });
+
 
 // モーダル内の「いいえ」ボタンを押したらモーダルを閉じる
 document.getElementById(`cancel-quit-btn`).addEventListener(`click`, () => {
