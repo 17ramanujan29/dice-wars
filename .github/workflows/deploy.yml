@@ -2,7 +2,8 @@ name: Deploy GitHub Pages
 
 on:
   push:
-    branches: ["main"] # mainブランチにpushした時に自動公開（masterの場合は master に変更）
+    branches: ["main", "syaragamu"] # push時に自動デプロイしたいブランチ
+  workflow_dispatch: # GitHub画面から手動実行ボタンを有効化
 
 permissions:
   contents: read
@@ -29,7 +30,6 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          # dist フォルダを指定（ここがポイントです）
           path: './dist'
 
       - name: Deploy to GitHub Pages
