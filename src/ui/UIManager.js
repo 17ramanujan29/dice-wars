@@ -14,6 +14,62 @@ export class UIManager {
     this.localSetupEl = document.getElementById("local-setup");
     this.onlineSetupEl = document.getElementById("online-setup");
     this.onlineLobbyEl = document.getElementById("online-lobby");
+    
+    // 設定関連の要素をキャッシュ
+    this.greatPowerRuleCb = document.getElementById("great-power-rule");
+    this.greatPowerThresholdInput = document.getElementById("great-power-threshold");
+    this.smallCountryRuleCb = document.getElementById("small-country-rule");
+    this.smallCountryThresholdInput = document.getElementById("small-country-threshold");
+  }
+
+  /**
+   * 設定の編集可否を設定
+   * @param {boolean} editable - 編集可能かどうか
+   * @param {boolean} [checkRules=true] - ルールチェックボックスも考慮するか
+   */
+  setSettingsEditable(editable, checkRules = true) {
+    document
+      .querySelectorAll(
+        ".rule-toggle, #great-power-threshold, #small-country-threshold, label",
+      )
+      .forEach((element) => {
+        element.classList.toggle("pointer-events-none", !editable);
+      });
+    document.querySelectorAll(".rule-toggle").forEach((element) => {
+      element.disabled = !editable;
+    });
+    
+    if (checkRules) {
+      this.greatPowerThresholdInput.disabled =
+        !editable || !this.greatPowerRuleCb.checked;
+      this.smallCountryThresholdInput.disabled =
+        !editable || !this.smallCountryRuleCb.checked;
+    } else {
+      this.greatPowerThresholdInput.disabled = !editable;
+      this.smallCountryThresholdInput.disabled = !editable;
+    }
+  }
+
+  /**
+   * 設定モーダルを表示
+   * @param {boolean} [editable=false] - 設定を編集可能にするか
+   */
+  showSettingsModal(editable = false) {
+    this.setSettingsEditable(editable);
+    this.settingsModalEl.classList.remove("hidden");
+  }
+
+  /**
+   * 設定モーダルを非表示
+   * @param {boolean} [checkHostSettings=true] - ホストの場合はルーム設定を保存するか
+   * @param {function} [onCloseCallback] - 閉じるときのコールバック
+   * @param {object} [context] - コールバック実行時のコンテキスト
+   */
+  hideSettingsModal(checkHostSettings = true, onCloseCallback = null, context = null) {
+    this.settingsModalEl.classList.add("hidden");
+    if (checkHostSettings && onCloseCallback && context) {
+      onCloseCallback.call(context);
+    }
   }
 
   updateGameState(state, onRestartCallback, canEndTurn = true) {

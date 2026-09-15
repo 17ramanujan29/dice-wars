@@ -1,4 +1,4 @@
-import { GAME_CONFIG } from '../config/gameConfig.js';
+import { GAME_CONFIG } from '../config/index.js';
 
 export function getHexMetrics(hexSize) {
     return {

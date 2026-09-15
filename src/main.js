@@ -1,18 +1,25 @@
-import { UI_CONFIG } from "./config/index.js";
+import { UI_CONFIG, CONFIG } from "./config/index.js";
 import { GameController } from "./core/GameController.js";
 import { OnlineGameSession } from "./core/OnlineGameSession.js";
 import { Renderer } from "./core/Renderer.js";
 import { UIManager } from "./ui/UIManager.js";
 import { InputHandler } from "./input/InputHandler.js";
 
+// ゲームインスタンスの初期化
 const canvas = document.getElementById("gameCanvas");
 const game = new GameController();
 const renderer = new Renderer("gameCanvas", game);
 const ui = new UIManager();
 const inputHandler = new InputHandler(canvas, renderer, game);
 const onlineSession = new OnlineGameSession(game);
+
+// ゲームモードの状態管理
 let currentMode = "local";
 
+/**
+ * 現在のルール設定を読み取る
+ * @returns {Object} ルールオブジェクト
+ */
 function readRules() {
   const rules = {};
   document.querySelectorAll(".rule-toggle").forEach((checkbox) => {
@@ -29,6 +36,10 @@ function readRules() {
   return rules;
 }
 
+/**
+ * ゲーム結果をローカルストレージに保存
+ * @param {string} status - ゲームステータス
+ */
 function saveGameResult(status) {
   const history = JSON.parse(localStorage.getItem("dice_wars_history") || "[]");
   history.push({
@@ -41,6 +52,9 @@ function saveGameResult(status) {
   localStorage.setItem("dice_wars_history", JSON.stringify(history));
 }
 
+/**
+ * スタート画面に戻る
+ */
 function returnToStartScreen() {
   if (currentMode === "online")
     onlineSession.end("オンラインセッションを終了しました。");
@@ -52,6 +66,10 @@ function returnToStartScreen() {
   ui.showStartMode();
 }
 
+/**
+ * ローカルゲームを開始
+ * @param {number} playerCount - プレイヤー数
+ */
 function startLocalGame(playerCount) {
   currentMode = "local";
   game.startGame(playerCount, readRules());
@@ -59,29 +77,18 @@ function startLocalGame(playerCount) {
   renderer.start();
 }
 
+/**
+ * オンラインゲームを開始
+ */
 function startOnlineGame() {
   currentMode = "online";
   ui.showInGameUI();
   renderer.start();
 }
 
-function setSettingsEditable(editable) {
-  document
-    .querySelectorAll(
-      ".rule-toggle, #great-power-threshold, #small-country-threshold, label",
-    )
-    .forEach((element) => {
-      element.classList.toggle("pointer-events-none", !editable);
-    });
-  document.querySelectorAll(".rule-toggle").forEach((element) => {
-    element.disabled = !editable;
-  });
-  document.getElementById("great-power-threshold").disabled =
-    !editable || !document.getElementById("great-power-rule").checked;
-  document.getElementById("small-country-threshold").disabled =
-    !editable || !document.getElementById("small-country-rule").checked;
-}
-
+/**
+ * ゲームの状態変化ハンドラ
+ */
 game.onStateChange = (state) => {
   const canEndTurn =
     currentMode === "local" ||
@@ -91,6 +98,9 @@ game.onStateChange = (state) => {
     onlineSession.broadcastState();
 };
 
+/**
+ * 戦闘開始ハンドラ（ローカル）
+ */
 game.onBattleStart = (source, target, attacker, defender) => {
   ui.setEndTurnAvailability(false);
   ui.showBattleStart(
@@ -98,7 +108,7 @@ game.onBattleStart = (source, target, attacker, defender) => {
     target,
     attacker,
     defender,
-    UI_CONFIG.battleAnimationMs,
+    CONFIG.ui.battleAnimationMs,
   );
   if (currentMode === "online" && onlineSession.role === "host") {
     onlineSession.network.send({
@@ -110,12 +120,16 @@ game.onBattleStart = (source, target, attacker, defender) => {
     });
   }
 };
+
+/**
+ * 戦闘終了ハンドラ（ローカル）
+ */
 game.onBattleEnd = (attackerScore, defenderScore, resultType) => {
   ui.showBattleEnd(
     attackerScore,
     defenderScore,
     resultType,
-    UI_CONFIG.battleResultDisplayMs,
+    CONFIG.ui.battleResultDisplayMs,
   );
   if (currentMode === "online" && onlineSession.role === "host") {
     onlineSession.network.send({
@@ -127,8 +141,16 @@ game.onBattleEnd = (attackerScore, defenderScore, resultType) => {
   }
 };
 
+/**
+ * オンラインセッションのイベントハンドラ
+ */
 onlineSession.onLobbyChange = (lobby) => ui.showOnlineLobby(lobby);
 onlineSession.onGameStart = startOnlineGame;
+
+/**
+ * オンライン戦闘開始ハンドラ
+ * ローカルのonBattleStartと処理が重複しているため、共通化できる
+ */
 onlineSession.onBattleStart = (battle) => {
   ui.setEndTurnAvailability(false);
   ui.showBattleStart(
@@ -136,18 +158,28 @@ onlineSession.onBattleStart = (battle) => {
     battle.target,
     battle.attacker,
     battle.defender,
-    UI_CONFIG.battleAnimationMs,
+    CONFIG.ui.battleAnimationMs,
   );
 };
+
+/**
+ * オンライン戦闘終了ハンドラ
+ * ローカルのonBattleEndと処理が重複しているため、共通化できる
+ */
 onlineSession.onBattleEnd = (battle) => {
   ui.showBattleEnd(
     battle.attackerScore,
     battle.defenderScore,
     battle.resultType,
-    UI_CONFIG.battleResultDisplayMs,
+    CONFIG.ui.battleResultDisplayMs,
   );
 };
+
 onlineSession.onError = (message) => ui.showOnlineError(message);
+
+/**
+ * オンラインセッション終了ハンドラ
+ */
 onlineSession.onSessionEnd = (reason) => {
   game.phase = "start";
   renderer.clear();
@@ -156,140 +188,179 @@ onlineSession.onSessionEnd = (reason) => {
   ui.showOnlineError(reason);
 };
 
-document
-  .getElementById("local-mode-btn")
-  .addEventListener("click", () => ui.showLocalSetup());
-document
-  .getElementById("online-mode-btn")
-  .addEventListener("click", () => ui.showOnlineSetup());
-document
-  .querySelectorAll(".back-to-mode")
-  .forEach((button) =>
-    button.addEventListener("click", () => ui.showStartMode()),
-  );
+/**
+ * UIイベントリスナーの設定
+ */
+function setupEventListeners() {
+  // モード選択
+  document
+    .getElementById("local-mode-btn")
+    .addEventListener("click", () => ui.showLocalSetup());
+  document
+    .getElementById("online-mode-btn")
+    .addEventListener("click", () => ui.showOnlineSetup());
+  document
+    .querySelectorAll(".back-to-mode")
+    .forEach((button) =>
+      button.addEventListener("click", () => ui.showStartMode()),
+    );
 
-document.querySelectorAll(".player-btn").forEach((button) => {
-  button.addEventListener("click", (event) =>
-    startLocalGame(parseInt(event.currentTarget.dataset.players, 10)),
-  );
-});
-
-document
-  .getElementById("create-room-btn")
-  .addEventListener("click", async () => {
-    ui.clearOnlineError();
-    currentMode = "online";
-    try {
-      await onlineSession.createRoom(
-        document.getElementById("online-player-name").value.trim(),
-      );
-    } catch (error) {
-      ui.showOnlineError(error.message || "ルームを作成できませんでした。");
-    }
+  // プレイヤー数選択
+  document.querySelectorAll(".player-btn").forEach((button) => {
+    button.addEventListener("click", (event) =>
+      startLocalGame(parseInt(event.currentTarget.dataset.players, 10)),
+    );
   });
 
-document.getElementById("join-room-btn").addEventListener("click", () => {
-  document.getElementById("join-room-form").classList.remove("hidden");
-});
-
-document
-  .getElementById("connect-room-btn")
-  .addEventListener("click", async () => {
-    ui.clearOnlineError();
-    currentMode = "online";
-    const roomCode = document.getElementById("room-code-input").value.trim();
-    if (!/^\d{6}$/.test(roomCode)) {
-      ui.showOnlineError("ルームコードは6桁の数字で入力してください。");
-      return;
-    }
-    try {
-      await onlineSession.joinRoom(
-        roomCode,
-        document.getElementById("online-player-name").value.trim(),
-      );
-    } catch (error) {
-      if (error.type === "peer-unavailable") {
-        ui.showRoomError();
-      } else {
-        ui.showOnlineError(error.message || "ルームに参加できませんでした。");
+  // オンラインルーム作成
+  document
+    .getElementById("create-room-btn")
+    .addEventListener("click", async () => {
+      ui.clearOnlineError();
+      currentMode = "online";
+      try {
+        await onlineSession.createRoom(
+          document.getElementById("online-player-name").value.trim(),
+        );
+      } catch (error) {
+        ui.showOnlineError(error.message || "ルームを作成できませんでした。");
       }
-    }
+    });
+
+  // オンラインルーム参加フォーム表示
+  document.getElementById("join-room-btn").addEventListener("click", () => {
+    document.getElementById("join-room-form").classList.remove("hidden");
   });
 
-document
-  .getElementById("close-room-error-btn")
-  .addEventListener("click", () => ui.hideRoomError());
+  // オンラインルーム参加
+  document
+    .getElementById("connect-room-btn")
+    .addEventListener("click", async () => {
+      ui.clearOnlineError();
+      currentMode = "online";
+      const roomCode = document.getElementById("room-code-input").value.trim();
+      if (!/^\d{6}$/.test(roomCode)) {
+        ui.showOnlineError("ルームコードは6桁の数字で入力してください。");
+        return;
+      }
+      try {
+        await onlineSession.joinRoom(
+          roomCode,
+          document.getElementById("online-player-name").value.trim(),
+        );
+      } catch (error) {
+        if (error.type === "peer-unavailable") {
+          ui.showRoomError();
+        } else {
+          ui.showOnlineError(error.message || "ルームに参加できませんでした。");
+        }
+      }
+    });
 
-document
-  .getElementById("start-online-btn")
-  .addEventListener("click", () => onlineSession.startGame());
-document
-  .getElementById("leave-online-btn")
-  .addEventListener("click", () =>
-    onlineSession.end("オンラインロビーから退出しました。"),
-  );
+  // ルームエラーモーダル閉じる
+  document
+    .getElementById("close-room-error-btn")
+    .addEventListener("click", () => ui.hideRoomError());
 
-document.getElementById("online-settings-btn").addEventListener("click", () => {
-  setSettingsEditable(onlineSession.role === "host");
-  document.getElementById("settings-modal").classList.remove("hidden");
-});
+  // オンラインゲーム開始
+  document
+    .getElementById("start-online-btn")
+    .addEventListener("click", () => onlineSession.startGame());
 
-document.getElementById("end-turn-btn").addEventListener("click", () => {
-  if (currentMode === "online") onlineSession.requestEndTurn();
-  else game.endTurn();
-});
-document
-  .getElementById("quit-game-btn")
-  .addEventListener("click", () =>
-    document.getElementById("quit-modal").classList.remove("hidden"),
-  );
-document.getElementById("confirm-quit-btn").addEventListener("click", () => {
-  saveGameResult("quit");
-  returnToStartScreen();
-});
-document
-  .getElementById("cancel-quit-btn")
-  .addEventListener("click", () =>
-    document.getElementById("quit-modal").classList.add("hidden"),
-  );
+  // オンラインロビー退出
+  document
+    .getElementById("leave-online-btn")
+    .addEventListener("click", () =>
+      onlineSession.end("オンラインロビーから退出しました。"),
+    );
 
-document.getElementById("open-settings-btn").addEventListener("click", () => {
-  setSettingsEditable(true);
-  document.getElementById("settings-modal").classList.remove("hidden");
-});
-document.getElementById("close-settings-btn").addEventListener("click", () => {
-  document.getElementById("settings-modal").classList.add("hidden");
-  if (currentMode === "local" && game.phase === "start") return;
-  if (onlineSession.role === "host") onlineSession.setRoomSettings(readRules());
-});
-document
-  .getElementById("in-game-settings-btn")
-  .addEventListener("click", () => {
-    setSettingsEditable(false);
-    document.getElementById("settings-modal").classList.remove("hidden");
+  // オンライン設定ボタン
+  document.getElementById("online-settings-btn").addEventListener("click", () => {
+    ui.showSettingsModal(onlineSession.role === "host");
   });
 
-const greatPowerRuleCb = document.getElementById("great-power-rule");
-const greatPowerThresholdInput = document.getElementById(
-  "great-power-threshold",
-);
-greatPowerRuleCb.addEventListener("change", (event) =>
-  ui.syncRuleToggleInput(event.target, greatPowerThresholdInput),
-);
-const smallCountryRuleCb = document.getElementById("small-country-rule");
-const smallCountryThresholdInput = document.getElementById(
-  "small-country-threshold",
-);
-smallCountryRuleCb.addEventListener("change", (event) =>
-  ui.syncRuleToggleInput(event.target, smallCountryThresholdInput),
-);
-ui.syncRuleToggleInput(greatPowerRuleCb, greatPowerThresholdInput);
-ui.syncRuleToggleInput(smallCountryRuleCb, smallCountryThresholdInput);
+  // ターン終了ボタン
+  document.getElementById("end-turn-btn").addEventListener("click", () => {
+    if (currentMode === "online") onlineSession.requestEndTurn();
+    else game.endTurn();
+  });
 
-inputHandler.onTerritoryClick = (territoryId) => {
-  if (currentMode === "online")
-    onlineSession.requestTerritoryClick(territoryId);
-  else game.handleTerritoryClick(territoryId);
-};
+  // ゲーム終了ボタン
+  document
+    .getElementById("quit-game-btn")
+    .addEventListener("click", () =>
+      document.getElementById("quit-modal").classList.remove("hidden"),
+    );
 
+  // ゲーム終了確認
+  document.getElementById("confirm-quit-btn").addEventListener("click", () => {
+    saveGameResult("quit");
+    returnToStartScreen();
+  });
+
+  // ゲーム終了キャンセル
+  document
+    .getElementById("cancel-quit-btn")
+    .addEventListener("click", () =>
+      document.getElementById("quit-modal").classList.add("hidden"),
+    );
+
+  // 設定オープン（ローカルスタート時）
+  document.getElementById("open-settings-btn").addEventListener("click", () => {
+    ui.showSettingsModal(true);
+  });
+
+  // 設定クローズ
+  document.getElementById("close-settings-btn").addEventListener("click", () => {
+    ui.hideSettingsModal(
+      true,
+      () => {
+        if (onlineSession.role === "host") {
+          onlineSession.setRoomSettings(readRules());
+        }
+      },
+      { currentMode, game, onlineSession }
+    );
+  });
+
+  // インゲーム設定ボタン
+  document
+    .getElementById("in-game-settings-btn")
+    .addEventListener("click", () => {
+      ui.showSettingsModal(false);
+    });
+}
+
+/**
+ * ルールトグルと入力フィールドの同期設定
+ */
+function setupRuleSync() {
+  ui.syncRuleToggleInput(ui.greatPowerRuleCb, ui.greatPowerThresholdInput);
+  ui.syncRuleToggleInput(ui.smallCountryRuleCb, ui.smallCountryThresholdInput);
+  
+  ui.greatPowerRuleCb.addEventListener("change", (event) =>
+    ui.syncRuleToggleInput(event.target, ui.greatPowerThresholdInput),
+  );
+  ui.smallCountryRuleCb.addEventListener("change", (event) =>
+    ui.syncRuleToggleInput(event.target, ui.smallCountryThresholdInput),
+  );
+}
+
+/**
+ * 領土クリックハンドラの設定
+ */
+function setupTerritoryClickHandler() {
+  inputHandler.onTerritoryClick = (territoryId) => {
+    if (currentMode === "online")
+      onlineSession.requestTerritoryClick(territoryId);
+    else game.handleTerritoryClick(territoryId);
+  };
+}
+
+// イベントリスナーの設定
+setupEventListeners();
+setupRuleSync();
+setupTerritoryClickHandler();
+
+// 初期表示
 ui.showStartMode();

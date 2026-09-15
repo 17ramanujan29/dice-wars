@@ -1,4 +1,4 @@
-import { GAME_CONFIG } from '../config/gameConfig.js';
+import { GAME_CONFIG } from '../config/index.js';
 import { getValidNeighbors, getHexCenter } from '../utils/hexUtils.js';
 import { Territory } from '../models/Territory.js';
 
