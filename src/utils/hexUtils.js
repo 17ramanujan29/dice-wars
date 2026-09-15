@@ -1,4 +1,4 @@
-import { CONFIG } from '../config.js';
+import { GAME_CONFIG } from '../config/gameConfig.js';
 
 export function getHexMetrics(hexSize) {
     return {
@@ -18,9 +18,9 @@ export function getHexCenter(col, row, hexSize) {
 }
 
 export function pixelToHex(px, py, hexSize) {
-    const q = (2/3 * px) / hexSize;
-    const r = (-1/3 * px + Math.sqrt(3)/3 * py) / hexSize;
-    return hexRound(q, r, -q-r);
+    const q = (2 / 3 * px) / hexSize;
+    const r = (-1 / 3 * px + Math.sqrt(3) / 3 * py) / hexSize;
+    return hexRound(q, r, -q - r);
 }
 
 function hexRound(q, r, s) {
@@ -40,8 +40,8 @@ export function getValidNeighbors(col, row) {
     ];
     for (let d of dirs[col & 1]) {
         const nc = col + d[0], nr = row + d[1];
-        if (nc >= 0 && nc < CONFIG.gridWidth && nr >= 0 && nr < CONFIG.gridHeight) {
-            neighbors.push({col: nc, row: nr});
+        if (nc >= 0 && nc < GAME_CONFIG.gridWidth && nr >= 0 && nr < GAME_CONFIG.gridHeight) {
+            neighbors.push({ col: nc, row: nr });
         }
     }
     return neighbors;
