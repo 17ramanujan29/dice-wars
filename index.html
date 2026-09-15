@@ -1,129 +1,690 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Local Rule Dice Wars</title>
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <title>Dice Wars Online - Local Rules Edition</title>
+    <!-- Tailwind CSS CDN -->
     <script src="https://cdn.tailwindcss.com"></script>
+    <!-- PeerJS CDN -->
+    <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+    <!-- FontAwesome for Icons -->
+    <link
+      rel="stylesheet"
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"
+    />
     <link rel="stylesheet" href="./style.css">
-</head>
-<body>
-<div id="game-container">
-    <div id="ui-layer">
-        <!-- 上段: マップ(canvas)とPlayers Info。 min-h-0 を設定してはみ出しを防ぐ -->
-        <div class="flex flex-row flex-grow w-full min-h-0">
-            
-            <!-- マップを表示する canvas-container -->
-            <div id="canvas-container" class="flex-grow relative pointer-events-auto h-full overflow-hidden">
-                <canvas id="gameCanvas"></canvas>
-            </div>
+  </head>
+  <body>
+    <main id="game-container">
+      <!-- Overlay UI Layer -->
+      <div
+        id="ui-layer"
+        class="pointer-events-none flex flex-col justify-between w-full h-full absolute top-0 left-0 z-20"
+      >
+        <!-- Top Info Header -->
+        <section
+          class="flex flex-col md:flex-row flex-grow w-full min-h-0 pointer-events-none"
+          aria-label="ゲーム画面"
+        >
+          <!-- Canvas Container -->
+          <div
+            id="canvas-container"
+            class="flex-grow relative pointer-events-auto h-full overflow-hidden"
+          >
+            <canvas id="gameCanvas" aria-label="ゲームマップ"></canvas>
+          </div>
 
-            <!-- Players Info等 (pointer-events-auto で操作可能に、オーバーフロー時はスクロール) -->
-            <div class="flex flex-col items-end pointer-events-auto p-2 overflow-y-auto shrink-0 z-10">
-                <div id="turn-info" class="ui-panel text-xl font-bold min-w-[200px] text-center" style="margin-bottom: 0.25rem;">Waiting to start...</div>
-                
-                <div class="ui-panel min-w-[200px]" style="margin-top: 0.25rem;">
-                    <h3 class="font-bold mb-2 border-b border-gray-500 pb-1">Players Info</h3>
-                    <div id="player-stats" class="text-sm"></div>
+          <!-- Side Info Bar -->
+          <div
+            class="flex flex-col items-end pointer-events-auto p-3 overflow-y-auto shrink-0 z-10 space-y-2.5 max-w-xs w-full sm:w-80"
+          >
+            <!-- Status & Turn Banner -->
+            <section
+              id="turn-info"
+              class="ui-panel p-4 text-center w-full transition-all duration-300"
+              aria-live="polite"
+              aria-label="現在の状態"
+            >
+              <div
+                class="text-[11px] font-bold text-slate-400 uppercase tracking-widest mb-1"
+              >
+                現在の状態
+              </div>
+              <div id="turn-status-text" class="text-xl font-black">
+                対戦準備中...
+              </div>
+              <div
+                id="p2p-badge"
+                class="hidden mt-2.5 inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-950/80 text-blue-200 border border-blue-500/40"
+              >
+                <span
+                  class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"
+                ></span>
+                <span id="p2p-role-text">P2P ホスト</span>
+              </div>
+            </section>
+
+            <!-- Player Statistics Leaderboard -->
+            <section
+              class="ui-panel p-4 w-full"
+              aria-labelledby="player-stats-heading"
+            >
+              <h2
+                id="player-stats-heading"
+                class="font-bold text-xs tracking-wider uppercase text-slate-400 border-b border-slate-700/60 pb-2 mb-3 flex items-center justify-between"
+              >
+                <span>プレイヤー一覧</span>
+                <i class="fa-solid fa-users text-xs"></i>
+              </h2>
+              <div
+                id="player-stats"
+                class="space-y-2 text-sm"
+                aria-live="polite"
+              ></div>
+            </section>
+          </div>
+        </section>
+
+        <!-- Bottom Action Bar -->
+        <nav
+          class="flex justify-between items-center p-4 shrink-0 pointer-events-auto z-10 bg-gradient-to-t from-slate-950/90 to-transparent"
+          aria-label="ゲーム操作"
+        >
+          <div class="flex items-center gap-2">
+            <button
+              type="button"
+              id="in-game-settings-btn"
+              class="ui-panel bg-slate-800/90 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm hidden shadow-lg flex items-center gap-2 border border-slate-600/50 transition active:scale-95"
+            >
+              <i class="fa-solid fa-gear"></i> ルール確認
+            </button>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <button
+              type="button"
+              id="quit-game-btn"
+              class="ui-panel bg-red-950/80 hover:bg-red-900/90 text-red-200 font-bold py-2.5 px-4 rounded-xl text-xs sm:text-sm hidden shadow-lg border border-red-700/50 transition active:scale-95"
+            >
+              <i class="fa-solid fa-door-open mr-1"></i> 退出する
+            </button>
+            <button
+              type="button"
+              id="end-turn-btn"
+              class="ui-panel bg-gradient-to-r from-amber-600 to-amber-500 hover:from-amber-500 hover:to-amber-400 text-slate-950 font-black py-3 px-8 rounded-xl text-base sm:text-lg hidden shadow-xl border border-amber-300/60 transform active:scale-95 transition"
+            >
+              ターン終了 <i class="fa-solid fa-arrow-right ml-1"></i>
+            </button>
+          </div>
+        </nav>
+      </div>
+
+      <!-- Top Level Screen: Mode Select Screen -->
+      <section
+        id="mode-select-screen"
+        class="z-50 pointer-events-auto bg-slate-950/95 backdrop-blur-xl flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4"
+        aria-labelledby="game-title"
+      >
+        <div
+          class="max-w-md w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col items-center"
+        >
+          <div
+            class="w-16 h-16 bg-gradient-to-br from-amber-400 via-orange-500 to-red-600 rounded-2xl flex items-center justify-center text-white text-3xl shadow-xl mb-4 border border-amber-300/40"
+          >
+            <i class="fa-solid fa-dice-d6"></i>
+          </div>
+          <h1
+            id="game-title"
+            class="text-3xl sm:text-4xl font-black mb-1 bg-clip-text text-transparent bg-gradient-to-r from-amber-400 via-orange-400 to-red-500 text-center tracking-tight"
+          >
+            DICE WARS
+          </h1>
+          <p
+            class="mb-8 text-slate-400 text-xs sm:text-sm font-medium tracking-wide"
+          >
+            ローカルルール & P2Pオンライン対戦版
+          </p>
+
+          <div class="w-full space-y-4">
+            <button
+              type="button"
+              id="start-local-btn"
+              class="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-between group transition transform active:scale-[0.99] border border-blue-400/30"
+            >
+              <div class="flex items-center gap-3.5">
+                <i class="fa-solid fa-user-group text-xl text-blue-200"></i>
+                <div class="text-left">
+                  <div class="text-base leading-snug">ローカル対戦</div>
+                  <div class="text-xs text-blue-200/70 font-normal">
+                    1台の端末で2〜4人交代プレイ
+                  </div>
                 </div>
-            </div>
-        </div>
-        
-        <!-- 下段: ボタンを表示するdiv。 shrink-0 で潰れないように確実に表示する -->
-        <div class="flex justify-end p-4 gap-4 shrink-0 pointer-events-auto z-10">
-            <button id="in-game-settings-btn" class="ui-panel bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-gray-500">設定確認</button>
-            <button id="quit-game-btn" class="ui-panel bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-red-500">ゲーム終了</button>
-            <button id="end-turn-btn" class="ui-panel bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-yellow-400">End Turn</button>
-        </div>
-    </div>
-
-    <!-- Start Screen -->
-    <div id="start-screen">
-        <h1 class="text-6xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-lg">DICE WARS</h1>
-        <p class="mb-8 text-gray-300 text-lg">Local Rules Edition</p>
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full">
-            <h2 class="text-2xl font-bold mb-6 text-center text-white">Select Number of Players</h2>
-            <div class="flex justify-center gap-4 mb-8">
-                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="2">2</button>
-                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="3">3</button>
-                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="4">4</button>
-            </div>
-            
-            <button id="open-settings-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded mb-6 border border-gray-500">
-                ⚙️ ルール設定
+              </div>
+              <i
+                class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform"
+              ></i>
             </button>
 
-            
-        </div>
-    </div>
+            <button
+              type="button"
+              id="start-online-btn"
+              class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-bold py-4 px-6 rounded-xl shadow-lg flex items-center justify-between group transition transform active:scale-[0.99] border border-emerald-400/30"
+            >
+              <div class="flex items-center gap-3.5">
+                <i class="fa-solid fa-globe text-xl text-emerald-200"></i>
+                <div class="text-left">
+                  <div class="text-base leading-snug">オンライン P2P 対戦</div>
+                  <div class="text-xs text-emerald-200/70 font-normal">
+                    ルーム作成または参加でリアルタイム対戦
+                  </div>
+                </div>
+              </div>
+              <i
+                class="fa-solid fa-chevron-right text-sm group-hover:translate-x-1 transition-transform"
+              ></i>
+            </button>
+          </div>
 
-    <!-- Battle Modal -->
-    <div id="battle-modal">
-        <h2 id="battle-title" class="text-3xl font-bold mb-4 text-white">Battle!</h2>
-        <div class="flex justify-between items-center gap-8">
-            <div id="atk-side" class="flex flex-col items-center">
-                <span class="text-xl font-bold mb-2" id="atk-player-name">Attacker</span>
-                <div class="text-5xl font-bold text-red-500" id="atk-score">0</div>
-                <div class="text-sm text-gray-400 mt-2">Dice: <span id="atk-dice-count">0</span></div>
-            </div>
-            <div class="text-3xl font-bold text-yellow-500">VS</div>
-            <div id="def-side" class="flex flex-col items-center">
-                <span class="text-xl font-bold mb-2" id="def-player-name">Defender</span>
-                <div class="text-5xl font-bold text-blue-500" id="def-score">0</div>
-                <div class="text-sm text-gray-400 mt-2">Dice: <span id="def-dice-count">0</span></div>
-            </div>
+          <div class="mt-8 text-[11px] text-slate-500 text-center">
+            PeerJS WebRTC / Auto Fallback 通信テクノロジー搭載
+          </div>
         </div>
-        <div id="battle-result" class="mt-6 text-2xl font-bold text-yellow-400 h-8"></div>
-    </div>
-</div>
-<div id="settings-modal" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[60] flex items-center justify-center pointer-events-auto">
-    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full">
-        <h2 class="text-2xl font-bold mb-6 text-center text-white">ゲーム設定</h2>
-        
-        <!-- ここにチェックボックスやスライダーを配置 -->
-        <div class="flex items-center justify-between mb-4 p-3 bg-gray-900 rounded">
-            <label for="latter-handicap-rule" class="text-white font-bold cursor-pointer">後手ボーナスダイス</label>
-            <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="latterBonusDice">
-        </div>
-        <!-- 大国ペナルティの設定項目 -->
-        <div class="flex flex-col mb-4 p-3 bg-gray-900 rounded">
-            <div class="flex items-center justify-between mb-2">
-                <label for="great-power-rule" class="text-white font-bold cursor-pointer">大国ペナルティ</label>
-                <input type="checkbox" id="great-power-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="greatPower">
-            </div>
-            <div class="flex items-center justify-between text-sm pl-2">
-                <span class="text-gray-400">適用する領土数（閾値）:</span>
-                <input type="number" id="great-power-threshold" class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed" value="16" min="10" max="25">
-            </div>
-        </div>
+      </section>
 
-        <!-- 小国ボーナスの設定項目 -->
-        <div class="flex flex-col mb-6 p-3 bg-gray-900 rounded">
-            <div class="flex items-center justify-between mb-2">
-                <label for="small-country-rule" class="text-white font-bold cursor-pointer">小国ボーナス</label>
-                <input type="checkbox" id="small-country-rule" class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="smallCountryBonus">
-            </div>
-            <div class="flex items-center justify-between text-sm pl-2">
-                <span class="text-gray-400">適用する領土数（閾値）:</span>
-                <input type="number" id="small-country-threshold" class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed" value="5" min="1" max="9">
-            </div>
+      <!-- Local Player Count Select Dialog -->
+      <div
+        id="local-player-modal"
+        class="hidden z-50 pointer-events-auto bg-slate-950/80 backdrop-blur-md flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4"
+      >
+        <div
+          class="max-w-md w-full bg-slate-900 border border-slate-700 rounded-2xl p-6 shadow-2xl"
+        >
+          <h2 class="text-2xl font-bold mb-2 text-center text-white">
+            プレイヤー数選択
+          </h2>
+          <p class="text-slate-400 text-xs text-center mb-6">
+            ローカル対戦を行う人数を選んでください。
+          </p>
+          <div class="flex justify-center gap-4 mb-6">
+            <button
+              class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30"
+              data-players="2"
+            >
+              2人
+            </button>
+            <button
+              class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30"
+              data-players="3"
+            >
+              3人
+            </button>
+            <button
+              class="local-player-select-btn bg-blue-600 hover:bg-blue-500 text-white font-black text-2xl py-4 rounded-xl w-20 shadow-lg transition active:scale-95 border border-blue-400/30"
+              data-players="4"
+            >
+              4人
+            </button>
+          </div>
+          <div class="flex justify-between gap-3">
+            <button
+              id="open-local-settings-btn"
+              class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl border border-slate-600/80 text-sm transition"
+            >
+              <i class="fa-solid fa-sliders mr-1"></i> ルール設定
+            </button>
+            <button
+              id="cancel-local-btn"
+              class="bg-slate-800 hover:bg-slate-700 text-slate-300 font-bold py-2.5 px-4 rounded-xl text-sm border border-slate-700 transition"
+            >
+              キャンセル
+            </button>
+          </div>
         </div>
+      </div>
 
-        <button id="close-settings-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded text-lg">
+      <!-- Online Lobby Screen -->
+      <div
+        id="online-lobby-screen"
+        class="hidden z-50 pointer-events-auto bg-slate-950/95 backdrop-blur-xl flex flex-col justify-center items-center w-full h-full absolute top-0 left-0 p-4"
+      >
+        <div
+          class="max-w-lg w-full bg-slate-900/90 border border-slate-700/80 rounded-2xl p-6 sm:p-8 shadow-2xl flex flex-col"
+        >
+          <!-- Title Header -->
+          <div
+            class="flex items-center justify-between pb-4 border-b border-slate-700/80 mb-6"
+          >
+            <div class="flex items-center gap-3">
+              <div
+                class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/40 text-emerald-400 flex items-center justify-center font-bold text-xl"
+              >
+                <i class="fa-solid fa-wifi"></i>
+              </div>
+              <div>
+                <h2 class="text-xl font-bold text-white">オンラインロビー</h2>
+                <div id="lobby-status-subtitle" class="text-xs text-slate-400">
+                  P2P ルームを作成または参加
+                </div>
+              </div>
+            </div>
+            <button
+              id="back-to-mode-btn"
+              class="text-slate-400 hover:text-white text-lg p-2 rounded-lg hover:bg-slate-800 transition"
+            >
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+          </div>
+
+          <!-- Join Room Box / Room Code Box -->
+          <div id="lobby-connect-section" class="space-y-6">
+            <div class="mb-4">
+              <label
+                class="block text-xs font-bold uppercase tracking-wider text-slate-400 mb-2"
+                >表示プレイヤー名</label
+              >
+              <input
+                type="text"
+                id="player-nickname-input"
+                placeholder="名前を入力"
+                maxlength="12"
+                class="w-full bg-slate-950 border border-slate-700 text-white py-2.5 px-3.5 rounded-xl focus:outline-none focus:border-emerald-500 font-bold text-sm"
+              />
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <!-- Create Room Card -->
+              <div
+                class="bg-slate-950/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between"
+              >
+                <div>
+                  <h3 class="font-bold text-white mb-1 flex items-center">
+                    <i class="fa-solid fa-plus-circle text-emerald-400 mr-2"></i
+                    >ルームを作成
+                  </h3>
+                  <p class="text-xs text-slate-400 mb-4">
+                    ホストとして新規ルームを立てて友達を招待します。
+                  </p>
+                </div>
+                <button
+                  id="create-room-btn"
+                  class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span>ルーム作成</span>
+                </button>
+              </div>
+
+              <!-- Join Room Card -->
+              <div
+                class="bg-slate-950/60 p-5 rounded-xl border border-slate-800 flex flex-col justify-between"
+              >
+                <div>
+                  <h3 class="font-bold text-white mb-1 flex items-center">
+                    <i
+                      class="fa-solid fa-right-to-bracket text-blue-400 mr-2"
+                    ></i
+                    >ルームに参加
+                  </h3>
+                  <p class="text-xs text-slate-400 mb-2">6桁のコードを入力:</p>
+                  <input
+                    type="text"
+                    id="room-code-input"
+                    placeholder="例: DW-8X2A"
+                    maxlength="7"
+                    class="w-full uppercase font-mono tracking-widest text-center bg-slate-950 border border-slate-700 text-amber-400 py-2 px-3 rounded-lg mb-3 focus:outline-none focus:border-blue-500 font-black text-sm"
+                  />
+                </div>
+                <button
+                  id="join-room-btn"
+                  class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition shadow-lg flex items-center justify-center gap-2 active:scale-95"
+                >
+                  <span>参加する</span>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Active Lobby Waiting Room Section (hidden initially) -->
+          <div id="lobby-active-section" class="hidden space-y-6">
+            <!-- Room Code Display -->
+            <div
+              class="bg-slate-950/80 p-4 rounded-xl border border-slate-800 flex items-center justify-between"
+            >
+              <div>
+                <div
+                  class="text-[11px] text-slate-400 font-bold uppercase tracking-wider"
+                >
+                  ルームコード
+                </div>
+                <div
+                  id="room-code-display"
+                  class="text-2xl font-mono font-black text-amber-400 tracking-widest"
+                >
+                  ------
+                </div>
+              </div>
+              <button
+                id="copy-room-code-btn"
+                class="bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-600/80 px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition active:scale-95"
+              >
+                <i class="fa-regular fa-copy"></i> コードをコピー
+              </button>
+            </div>
+
+            <!-- Joined Players List -->
+            <div>
+              <div class="flex items-center justify-between mb-3">
+                <span
+                  class="text-xs font-bold uppercase tracking-wider text-slate-400"
+                  >参加メンバー (<span id="connected-count">1</span>/4)</span
+                >
+                <span
+                  id="lobby-role-badge"
+                  class="text-xs bg-slate-800 text-slate-300 px-2.5 py-0.5 rounded-full border border-slate-700 font-bold"
+                  >ホスト</span
+                >
+              </div>
+              <div id="lobby-player-list" class="space-y-2">
+                <!-- Dynamic Player Badges -->
+              </div>
+            </div>
+
+            <!-- Host Controls & Rule Settings Trigger -->
+            <div id="host-lobby-controls" class="space-y-3 pt-2">
+              <button
+                id="open-lobby-rules-btn"
+                class="w-full bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl border border-slate-700 text-sm flex items-center justify-center gap-2 transition"
+              >
+                <i class="fa-solid fa-sliders"></i> ルール詳細設定
+              </button>
+              <button
+                id="start-online-game-btn"
+                class="w-full bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-extrabold py-3.5 px-6 rounded-xl text-base shadow-xl flex items-center justify-center gap-2 transition transform active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                <i class="fa-solid fa-play"></i> ゲームを開始する
+              </button>
+            </div>
+
+            <!-- Client Waiting Indicator -->
+            <div
+              id="client-lobby-controls"
+              class="hidden text-center py-5 bg-slate-950/50 rounded-xl border border-slate-800"
+            >
+              <div
+                class="inline-block w-6 h-6 border-2 border-emerald-400 border-t-transparent rounded-full animate-spin mb-2"
+              ></div>
+              <p class="text-slate-300 font-bold text-sm">
+                ホストがゲームを開始するのを待っています...
+              </p>
+              <p class="text-xs text-slate-500 mt-1">
+                ルール設定はホストが変更可能です
+              </p>
+            </div>
+
+            <div class="pt-2 text-right">
+              <button
+                id="leave-lobby-btn"
+                class="text-red-400 hover:text-red-300 text-xs font-bold underline"
+              >
+                切断して退出する
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Battle Animation Modal -->
+      <div
+        id="battle-modal"
+        class="ui-panel z-40 text-center pointer-events-none p-6 sm:p-8 hidden absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 min-w-[300px] max-w-md w-11/12 border-2 border-amber-400/80"
+      >
+        <h2
+          id="battle-title"
+          class="text-2xl sm:text-3xl font-black mb-4 text-white tracking-wider flex items-center justify-center gap-2"
+        >
+          <i class="fa-solid fa-swords text-amber-400"></i> DICE BATTLE
+        </h2>
+        <div class="flex justify-between items-center gap-3 my-6">
+          <div id="atk-side" class="flex flex-col items-center flex-1">
+            <span
+              class="text-sm font-extrabold mb-1 truncate max-w-[100px]"
+              id="atk-player-name"
+              >攻撃側</span
+            >
+            <div
+              class="text-4xl sm:text-5xl font-black text-red-500 drop-shadow-md"
+              id="atk-score"
+            >
+              0
+            </div>
+            <div
+              class="text-[11px] text-slate-400 mt-2 bg-slate-950/80 px-2 py-1 rounded-md border border-slate-800"
+            >
+              サイコロ:
+              <span id="atk-dice-count" class="font-bold text-slate-200"
+                >0</span
+              >
+            </div>
+          </div>
+          <div
+            class="text-xl sm:text-2xl font-black text-amber-400 animate-pulse"
+          >
+            VS
+          </div>
+          <div id="def-side" class="flex flex-col items-center flex-1">
+            <span
+              class="text-sm font-extrabold mb-1 truncate max-w-[100px]"
+              id="def-player-name"
+              >防衛側</span
+            >
+            <div
+              class="text-4xl sm:text-5xl font-black text-blue-500 drop-shadow-md"
+              id="def-score"
+            >
+              0
+            </div>
+            <div
+              class="text-[11px] text-slate-400 mt-2 bg-slate-950/80 px-2 py-1 rounded-md border border-slate-800"
+            >
+              サイコロ:
+              <span id="def-dice-count" class="font-bold text-slate-200"
+                >0</span
+              >
+            </div>
+          </div>
+        </div>
+        <div
+          id="battle-result"
+          class="mt-4 text-xl sm:text-2xl font-black tracking-wide h-8"
+        ></div>
+      </div>
+
+      <!-- Rules Settings Modal -->
+      <div
+        id="settings-modal"
+        class="hidden absolute top-0 left-0 w-full h-full bg-slate-950/80 backdrop-blur-md z-[60] flex items-center justify-center p-4 pointer-events-auto"
+      >
+        <div
+          class="bg-slate-900 border border-slate-700 p-6 sm:p-8 rounded-2xl shadow-2xl max-w-md w-full"
+        >
+          <h2
+            id="settings-modal-title"
+            class="text-2xl font-bold mb-4 text-center text-white flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-sliders text-amber-400"></i>
+            <span id="settings-title-text">ローカルルール設定</span>
+          </h2>
+
+          <!-- Read Only Notice Banner -->
+          <div
+            id="settings-readonly-notice"
+            class="hidden mb-4 p-2.5 bg-amber-950/60 border border-amber-500/40 rounded-xl text-amber-200 text-xs text-center font-bold flex items-center justify-center gap-2"
+          >
+            <i class="fa-solid fa-lock"></i>
+            <span>対戦中（またはゲスト時）はルール変更できません</span>
+          </div>
+
+          <div class="space-y-4 mb-6">
+            <!-- 後手ボーナス -->
+            <div
+              class="flex items-center justify-between p-3.5 bg-slate-950/80 rounded-xl border border-slate-800"
+            >
+              <div>
+                <label
+                  for="latter-handicap-rule"
+                  class="text-white font-bold text-sm block cursor-pointer"
+                  >後手ボーナスサイコロ</label
+                >
+                <span class="text-xs text-slate-400"
+                  >2番目以降のプレイヤーに初期サイコロ追加</span
+                >
+              </div>
+              <input
+                type="checkbox"
+                id="latter-handicap-rule"
+                class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle"
+                data-rule="latterBonusDice"
+                checked
+              />
+            </div>
+
+            <!-- 大国ペナルティ -->
+            <div
+              class="flex flex-col p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <label
+                    for="great-power-rule"
+                    class="text-white font-bold text-sm block cursor-pointer"
+                    >大国ペナルティ</label
+                  >
+                  <span class="text-xs text-slate-400"
+                    >大国の1マス最大サイコロ数・補給を制限</span
+                  >
+                </div>
+                <input
+                  type="checkbox"
+                  id="great-power-rule"
+                  class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle"
+                  data-rule="greatPower"
+                  checked
+                />
+              </div>
+              <div
+                class="flex items-center justify-between text-xs pt-2 border-t border-slate-800"
+              >
+                <span class="text-slate-400">発動領土数しきい値:</span>
+                <input
+                  type="number"
+                  id="great-power-threshold"
+                  class="w-20 p-1.5 bg-slate-900 text-white rounded-lg border border-slate-700 text-center font-bold"
+                  value="16"
+                  min="10"
+                  max="25"
+                />
+              </div>
+            </div>
+
+            <!-- 小国ボーナス -->
+            <div
+              class="flex flex-col p-3.5 bg-slate-950/80 rounded-xl border border-slate-800 space-y-3"
+            >
+              <div class="flex items-center justify-between">
+                <div>
+                  <label
+                    for="small-country-rule"
+                    class="text-white font-bold text-sm block cursor-pointer"
+                    >小国ボーナス</label
+                  >
+                  <span class="text-xs text-slate-400"
+                    >小国の補給サイコロ最低保証数を適用</span
+                  >
+                </div>
+                <input
+                  type="checkbox"
+                  id="small-country-rule"
+                  class="w-6 h-6 rounded cursor-pointer accent-amber-500 rule-toggle"
+                  data-rule="smallCountryBonus"
+                  checked
+                />
+              </div>
+              <div
+                class="flex items-center justify-between text-xs pt-2 border-t border-slate-800"
+              >
+                <span class="text-slate-400">発動領土数しきい値:</span>
+                <input
+                  type="number"
+                  id="small-country-threshold"
+                  class="w-20 p-1.5 bg-slate-900 text-white rounded-lg border border-slate-700 text-center font-bold"
+                  value="5"
+                  min="1"
+                  max="9"
+                />
+              </div>
+            </div>
+          </div>
+
+          <button
+            id="close-settings-btn"
+            class="w-full bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded-xl text-base shadow-lg transition active:scale-95"
+          >
             設定を閉じる
-        </button>
-    </div>
-</div>
-<!-- ゲーム終了確認モーダル -->
-<div id="quit-modal" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[70] flex items-center justify-center pointer-events-auto">
-    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 max-w-sm w-full text-center">
-        <h3 class="text-xl font-bold mb-4 text-white">ゲームを終了しますか？</h3>
-        <div class="flex justify-center gap-4">
-            <button id="confirm-quit-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded">はい</button>
-            <button id="cancel-quit-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded">いいえ</button>
+          </button>
         </div>
-    </div>
-</div>
-<script type="module" src="./src/main.js"></script>
-</body>
+      </div>
+
+      <!-- Quit Modal -->
+      <div
+        id="quit-modal"
+        class="hidden absolute top-0 left-0 w-full h-full bg-slate-950/80 backdrop-blur-md z-[70] flex items-center justify-center p-4 pointer-events-auto"
+      >
+        <div
+          class="bg-slate-900 border border-slate-700 p-6 rounded-2xl shadow-2xl max-w-sm w-full text-center"
+        >
+          <i
+            class="fa-solid fa-triangle-exclamation text-amber-400 text-4xl mb-3"
+          ></i>
+          <h3 class="text-xl font-bold mb-1 text-white">
+            対戦を終了しますか？
+          </h3>
+          <p class="text-xs text-slate-400 mb-6">
+            進行中の対戦データは消去されます。
+          </p>
+          <div class="flex justify-center gap-3">
+            <button
+              id="confirm-quit-btn"
+              class="flex-1 bg-red-600 hover:bg-red-500 text-white font-bold py-2.5 px-4 rounded-xl text-sm transition active:scale-95"
+            >
+              退出する
+            </button>
+            <button
+              id="cancel-quit-btn"
+              class="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold py-2.5 px-4 rounded-xl text-sm transition active:scale-95"
+            >
+              継続する
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Custom Notification Toast Banner -->
+      <div
+        id="toast-banner"
+        class="hidden fixed top-5 left-1/2 -translate-x-1/2 z-[100] bg-slate-900/95 border border-amber-400/80 text-amber-200 px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 backdrop-blur-md transition-all duration-300"
+      >
+        <i
+          id="toast-icon"
+          class="fa-solid fa-circle-info text-amber-400 text-lg"
+        ></i>
+        <span id="toast-message" class="text-xs sm:text-sm font-bold"
+          >通知</span
+        >
+      </div>
+    </main>
+    <script type="module" src="./src/app.js"></script>
+  </body>
 </html>

@@ -1,402 +1,361 @@
-import { CONFIG } from '../config.js';
-import { getHexCenter, getValidNeighbors, getHexMetrics } from '../utils/hexUtils.js';
+import { CONFIG } from "../config.js";
+import { getHexMetrics, hexToPixel } from "../utils/hexUtils.js";
 
-export class Renderer {
-    constructor(canvasId, gameController) {
-        this.canvas = document.getElementById(canvasId);
-        this.ctx = this.canvas.getContext('2d');
-        this.game = gameController;
-        this.camera = { x: 0, y: 0, scale: 1 };
-        this.isRunning = false;
+class CanvasRenderer {
+  constructor(canvasId, gameEngine) {
+    this.canvas = document.getElementById(canvasId);
+    this.ctx = this.canvas.getContext("2d");
+    this.game = gameEngine;
+    this.camera = { x: 0, y: 0 };
+    this.isRunning = false;
+    this.canDrag = false;
+  }
+
+  start() {
+    this.isRunning = true;
+    this.resize();
+    window.addEventListener("resize", () => this.resize());
+    this.loop();
+  }
+
+  loop() {
+    if (this.isRunning) {
+      this.render();
+      requestAnimationFrame(() => this.loop());
     }
+  }
 
-    start() {
-        this.isRunning = true;
-        this.resize();
-        window.addEventListener('resize', () => this.resize());
-        this.loop();
-    }
+  resize() {
+    const parent = this.canvas.parentElement;
+    if (!parent) return;
+    this.canvas.width = parent.clientWidth;
+    this.canvas.height = parent.clientHeight;
+    this.fitMapToScreen();
+  }
 
-    loop() {
-        if (!this.isRunning) return;
-        this.render();
-        requestAnimationFrame(() => this.loop()); // アニメーションループ
-    }
+  fitMapToScreen() {
+    let availW = Math.max(100, this.canvas.width - 40);
+    let availH = Math.max(100, this.canvas.height - 40);
 
-    resize() {
-        const container = this.canvas.parentElement;
-        this.canvas.width = container.clientWidth;
-        this.canvas.height = container.clientHeight;
-        this.fitMapToScreen();
-    }
+    let scaleX = availW / (CONFIG.gridWidth * 1.5 + 0.5);
+    let scaleY = availH / (CONFIG.gridHeight * Math.sqrt(3) * CONFIG.yScale);
+    CONFIG.hexSize = Math.max(12, Math.min(scaleX, scaleY));
 
-    fitMapToScreen(){
-        // 余白を少し設定（画面が小さい場合はドラッグで移動するため小さめでOK）
-        let padding = 20; 
-
-        // マップを最大限広げられる「描画可能領域」を計算
-        let availableWidth = this.canvas.width - padding * 2;
-        let availableHeight = this.canvas.height - padding * 2;
-
-        // 画面が極端に狭い場合のフェイルセーフ
-        if (availableWidth < 100) availableWidth = 100;
-        if (availableHeight < 100) availableHeight = 100;
-
-        let widthScale = availableWidth / (CONFIG.gridWidth * 1.5 + 0.5);
-        let heightScale = availableHeight / (CONFIG.gridHeight * Math.sqrt(3) * CONFIG.yScale);
-        
-        // 【変更】hexSize に下限（例: 12）を設定し、画面が小さすぎる場合は縮小を止める
-        CONFIG.hexSize = Math.max(12, Math.min(widthScale, heightScale));
-        
-        let metrics = getHexMetrics(CONFIG.hexSize);
-        let mapWidth = CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
-        let mapHeight = (CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5) * CONFIG.yScale;
-        
-        // 【変更】UI用の固定マージン（20, 40等）を排除し、キャンバス全体の完全な中央に配置
-        this.camera.x = (this.canvas.width - mapWidth) / 2 + padding;
-        this.camera.y = (this.canvas.height - mapHeight) / 2 + padding;
-
-        this.canDrag = (mapWidth > this.canvas.width) || (mapHeight > this.canvas.height);
-    }
-
-    clear() {
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-    }
-
-    render(){
-        if(this.game.phase===`start`)return;
-        this.ctx.clearRect(0,0,this.canvas.width,this.canvas.height);
-        
-        // 1. マップ床面を斜めに倒して描画
-        this.ctx.save();
-        this.ctx.translate(this.camera.x,this.camera.y);
-        this.ctx.scale(1,CONFIG.yScale);
-        this.game.territories.forEach(t=>{
-            let baseColor=t.id===this.game.selectedTerritoryId?`#323232`:this.game.players[t.owner].color;
-            t.hexes.forEach(h=>{
-                let i=getHexCenter(h.c,h.r,CONFIG.hexSize);
-                this.drawHexagon(i.x,i.y,CONFIG.hexSize,baseColor,null,0);
-            });
-        });
-        this.drawBorders();
-        this.drawHighlights();
-        this.ctx.restore();
-        
-        // 2. 立体サイコロを真上に立ち上げて描画
-        this.ctx.save();
-        this.ctx.translate(this.camera.x,this.camera.y);
-        this.game.territories.forEach(t=>{
-            let n=getHexCenter(t.centerHex.c,t.centerHex.r,CONFIG.hexSize);
-            this.drawDiceStack(n.x, n.y * CONFIG.yScale, t.dice, this.game.players[t.owner].color);
-        });
-        this.ctx.restore();
-    }
-
-    /*
-    fitMapToScreen() {
-    // 画面内の各方向の余白（マージン）を設定
-    let leftMargin = 20;     // 左端はUIがないので少しだけ空ける
-    let rightMargin = 240;   // 右端はPlayers Infoなどを避けるために広く空ける
-    let topMargin = 40;      // 上端もUIがないので少しだけ空ける
-    let bottomMargin = 120;  // 下端はボタン類を避けるために空ける
-
-    // マップを最大限広げられる「描画可能領域」を計算
-    let availableWidth = this.canvas.width - leftMargin - rightMargin;
-    let availableHeight = this.canvas.height - topMargin - bottomMargin;
-    
-    // 画面が極端に狭い場合のフェイルセーフ
-    if (availableWidth < 100) availableWidth = 100;
-    if (availableHeight < 100) availableHeight = 100;
-
-    // グリッド全体の幅と高さの比率から、最適なHexサイズを算出
-    let widthScale = availableWidth / (CONFIG.gridWidth * 1.5 + 0.5);
-    let heightScale = availableHeight / (CONFIG.gridHeight * Math.sqrt(3));
-    CONFIG.hexSize = Math.min(widthScale, heightScale); // 画面内に収まるように小さい方を採用
-    
-    // 決定したHexサイズを使って、実際のマップの描画サイズを計算
     let metrics = getHexMetrics(CONFIG.hexSize);
-    let mapWidth = CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
-    let mapHeight = CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5;
-    
-    // 指定した余白の範囲内で、マップが中央にくるようにカメラ位置を調整
-    this.camera.x = leftMargin + (availableWidth - mapWidth) / 2;
-    this.camera.y = topMargin + (availableHeight - mapHeight) / 2;
-}
+    let totalW = CONFIG.gridWidth * metrics.horizDist + CONFIG.hexSize * 0.5;
+    let totalH =
+      (CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5) *
+      CONFIG.yScale;
 
+    this.camera.x = (this.canvas.width - totalW) / 2 + 10;
+    this.camera.y = (this.canvas.height - totalH) / 2 + 10;
+    this.canDrag = totalW > this.canvas.width || totalH > this.canvas.height;
+  }
 
-    render() {
-        if (this.game.phase === 'start') return;
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.ctx.save();
-        this.ctx.translate(this.camera.x, this.camera.y);
+  clear() {
+    this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+  }
 
-        this.game.territories.forEach(terr => {
-            const baseColor = (terr.id === this.game.selectedTerritoryId) ? '#323232' : this.game.players[terr.owner].color;
-            terr.hexes.forEach(h => {
-                const p = getHexCenter(h.c, h.r, CONFIG.hexSize);
-                this.drawHexagon(p.x, p.y, CONFIG.hexSize, baseColor, null, 0);
-            });
-        });
+  render() {
+    if (this.game.phase === "start") return;
 
-        this.drawBorders();
-        this.drawHighlights();
+    this.clear();
+    this.ctx.save();
+    this.ctx.translate(this.camera.x, this.camera.y);
 
-        this.game.territories.forEach(terr => {
-            const pos = getHexCenter(terr.centerHex.c, terr.centerHex.r, CONFIG.hexSize);
-            this.drawDiceStack(pos.x, pos.y, terr.dice, this.game.players[terr.owner].color);
-        });
+    // Draw Base Hex Surface
+    this.ctx.save();
+    this.ctx.scale(1, CONFIG.yScale);
+    this.game.territories.forEach((t) => {
+      let color =
+        t.id === this.game.selectedTerritoryId
+          ? "#475569"
+          : this.game.players[t.owner].color;
+      t.hexes.forEach((h) => {
+        let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
+        this.drawHexagon(pos.x, pos.y, CONFIG.hexSize, color, null, 0);
+      });
+    });
 
-        this.ctx.restore();
+    this.drawBorders();
+    this.drawHighlights();
+    this.ctx.restore();
+
+    // Draw Isometric 3D Dice Stacks
+    this.game.territories.forEach((t) => {
+      let pos = hexToPixel(t.centerHex.c, t.centerHex.r, CONFIG.hexSize);
+      this.drawDiceStack(
+        pos.x,
+        pos.y * CONFIG.yScale,
+        t.dice,
+        this.game.players[t.owner].color,
+      );
+    });
+
+    this.ctx.restore();
+  }
+
+  drawHexagon(x, y, size, fillColor, strokeColor, strokeWidth = 1) {
+    this.ctx.beginPath();
+    for (let i = 0; i < 6; i++) {
+      let angle = (Math.PI / 180) * (60 * i);
+      let px = x + size * Math.cos(angle);
+      let py = y + size * Math.sin(angle);
+      if (i === 0) this.ctx.moveTo(px, py);
+      else this.ctx.lineTo(px, py);
     }
-*/
-    drawHexagon(x, y, size, fillStyle, strokeStyle, lineWidth = 1) {
-        this.ctx.beginPath();
+    this.ctx.closePath();
+    if (fillColor) {
+      this.ctx.fillStyle = fillColor;
+      this.ctx.fill();
+    }
+    if (strokeColor) {
+      this.ctx.lineWidth = strokeWidth;
+      this.ctx.strokeStyle = strokeColor;
+      this.ctx.stroke();
+    }
+  }
+
+  drawHighlights() {
+    let selId = this.game.selectedTerritoryId;
+    if (selId === null) return;
+
+    let selTerr = this.game.territories.find((t) => t.id === selId);
+    if (!selTerr) return;
+
+    // Highlight Selected Territory
+    selTerr.hexes.forEach((h) => {
+      let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
+      this.drawHexagon(
+        pos.x,
+        pos.y,
+        CONFIG.hexSize,
+        CONFIG.selectedHighlight,
+        "#ffffff",
+        2,
+      );
+    });
+
+    // Highlight Attack Targets
+    this.game.territories
+      .filter(
+        (t) => t.owner !== selTerr.owner && this.game.areAdjacent(selTerr, t),
+      )
+      .forEach((t) => {
+        t.hexes.forEach((h) => {
+          let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
+          this.drawHexagon(
+            pos.x,
+            pos.y,
+            CONFIG.hexSize,
+            CONFIG.targetHighlight,
+            null,
+            0,
+          );
+        });
+      });
+  }
+
+  drawBorders() {
+    this.ctx.lineCap = "round";
+    this.ctx.lineJoin = "round";
+    const vertexAngles = [0, 5, 4, 3, 2, 1];
+    const dirOffset = [
+      [
+        [1, 0],
+        [1, -1],
+        [0, -1],
+        [-1, -1],
+        [-1, 0],
+        [0, 1],
+      ],
+      [
+        [1, 1],
+        [1, 0],
+        [0, -1],
+        [-1, 0],
+        [-1, 1],
+        [0, 1],
+      ],
+    ];
+
+    this.game.territories.forEach((terr) => {
+      let isSel = terr.id === this.game.selectedTerritoryId;
+      this.ctx.strokeStyle = isSel ? "#ffffff" : "rgba(15, 23, 42, 0.9)";
+      this.ctx.lineWidth = isSel ? 3.5 : 2;
+
+      terr.hexes.forEach((h) => {
+        let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
         for (let i = 0; i < 6; i++) {
-            const rad = Math.PI / 180 * (60 * i);
-            const hx = x + size * Math.cos(rad), hy = y + size * Math.sin(rad);
-            i === 0 ? this.ctx.moveTo(hx, hy) : this.ctx.lineTo(hx, hy);
-        }
-        this.ctx.closePath();
-        if (fillStyle) { this.ctx.fillStyle = fillStyle; this.ctx.fill(); }
-        if (strokeStyle) { this.ctx.lineWidth = lineWidth; this.ctx.strokeStyle = strokeStyle; this.ctx.stroke(); }
-    }
+          let off = dirOffset[h.c & 1][i];
+          let nc = h.c + off[0],
+            nr = h.r + off[1];
+          let isSameTerritory =
+            nc >= 0 &&
+            nc < CONFIG.gridWidth &&
+            nr >= 0 &&
+            nr < CONFIG.gridHeight &&
+            this.game.hexGrid &&
+            this.game.hexGrid[nc] &&
+            this.game.hexGrid[nc][nr] &&
+            this.game.hexGrid[nc][nr].active &&
+            this.game.hexGrid[nc][nr].territoryId === terr.id;
 
-    drawHighlights() {
-        const selId = this.game.selectedTerritoryId;
-        if (selId === null) return;
-        const selTerr = this.game.territories.find(t => t.id === selId);
-
-        selTerr.hexes.forEach(h => {
-            const p = getHexCenter(h.c, h.r, CONFIG.hexSize);
-            this.drawHexagon(p.x, p.y, CONFIG.hexSize, CONFIG.selectedHighlight, null, 0);
-        });
-
-        this.game.territories.filter(t => t.owner !== selTerr.owner && this.game.areAdjacent(selTerr, t)).forEach(targetTerr => {
-            targetTerr.hexes.forEach(h => {
-                const p = getHexCenter(h.c, h.r, CONFIG.hexSize);
-                this.drawHexagon(p.x, p.y, CONFIG.hexSize, CONFIG.targetHighlight, null, 0);
-            });
-        });
-    }
-
-    drawBorders() {
-        this.ctx.lineWidth = 3; this.ctx.lineCap = 'round'; this.ctx.lineJoin = 'round';
-        const edgeMap = [0, 5, 4, 3, 2, 1];
-        const dirs = [ [[+1,0],[+1,-1],[0,-1],[-1,-1],[-1,0],[0,+1]], [[+1,+1],[+1,0],[0,-1],[-1,0],[-1,+1],[0,+1]] ];
-
-        [...this.game.territories.filter(t => t.id !== this.game.selectedTerritoryId), this.game.territories.find(t => t.id === this.game.selectedTerritoryId)]
-        .filter(t => t)
-        .forEach(t => {
-            const isSelected = (t.id === this.game.selectedTerritoryId);
-            this.ctx.strokeStyle = isSelected ? '#ffffff' : '#323232';
-            this.ctx.lineWidth = isSelected ? 4 : 4;
-
-            t.hexes.forEach(h => {
-                const center = getHexCenter(h.c, h.r, CONFIG.hexSize);
-                for (let i = 0; i < 6; i++) {
-                    const d = dirs[h.c & 1][i], nc = h.c + d[0], nr = h.r + d[1];
-                    let isBorder = (nc < 0 || nc >= CONFIG.gridWidth || nr < 0 || nr >= CONFIG.gridHeight) || 
-                                   (!this.game.hexGrid[nc][nr].active || this.game.hexGrid[nc][nr].territoryId !== t.id);
-                    
-                    if (isBorder) {
-                        const rad1 = Math.PI / 180 * (60 * edgeMap[i]), rad2 = Math.PI / 180 * (60 * ((edgeMap[i] + 1) % 6));
-                        this.ctx.beginPath();
-                        this.ctx.moveTo(center.x + CONFIG.hexSize * Math.cos(rad1), center.y + CONFIG.hexSize * Math.sin(rad1));
-                        this.ctx.lineTo(center.x + CONFIG.hexSize * Math.cos(rad2), center.y + CONFIG.hexSize * Math.sin(rad2));
-                        this.ctx.stroke();
-                    }
-                }
-            });
-        });
-    }
-    
-/*
-    drawDiceStack(x, y, count, color) {
-        let width = Math.max(CONFIG.hexSize * .68, 6);
-        let height = width * .75;
-        let sideH = width * 1.05;
-        let stepY = sideH * 1;
-
-        let isDouble = count >= 5; // 5個以上なら2列にするフラグ
-        let xOffset = width * 1.1; // 左右にずらす幅
-
-        for (let i = 0; i < count; i++) {
-            // 何段目に積むかを計算（2列の場合はインデックスを半分にする）
-            let stackIdx = isDouble ? Math.floor(i / 2) : i;
-            let cy = y - stackIdx * stepY;
-            
-            // 2列の場合は偶数・奇数でX座標を左右にずらす
-            let tx = isDouble ? (x + (i % 2 === 0 ? -xOffset : xOffset)) : x;
-
-            let topColor = this.shadeColor(color, 30);
-            let leftColor = this.shadeColor(color, -5);
-            let rightColor = this.shadeColor(color, -25);
-            this.ctx.lineWidth = 1, this.ctx.lineJoin = `round`, this.ctx.strokeStyle = `rgba(0,0,0,0.4)`;
-            
-            this.ctx.fillStyle = topColor;
+          if (!isSameTerritory) {
+            let a1 = (Math.PI / 180) * (60 * vertexAngles[i]);
+            let a2 = (Math.PI / 180) * (60 * ((vertexAngles[i] + 1) % 6));
             this.ctx.beginPath();
-            this.ctx.moveTo(tx, cy - sideH - height);
-            this.ctx.lineTo(tx + width, cy - sideH);
-            this.ctx.lineTo(tx, cy - sideH + height);
-            this.ctx.lineTo(tx - width, cy - sideH);
-            this.ctx.closePath();
-            this.ctx.fill();
+            this.ctx.moveTo(
+              pos.x + CONFIG.hexSize * Math.cos(a1),
+              pos.y + CONFIG.hexSize * Math.sin(a1),
+            );
+            this.ctx.lineTo(
+              pos.x + CONFIG.hexSize * Math.cos(a2),
+              pos.y + CONFIG.hexSize * Math.sin(a2),
+            );
             this.ctx.stroke();
-
-            this.ctx.fillStyle = leftColor;
-            this.ctx.beginPath();
-            this.ctx.moveTo(tx - width, cy - sideH);
-            this.ctx.lineTo(tx, cy - sideH + height);
-            this.ctx.lineTo(tx, cy + height);
-            this.ctx.lineTo(tx - width, cy);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            
-            this.ctx.fillStyle = rightColor;
-            this.ctx.beginPath();
-            this.ctx.moveTo(tx, cy - sideH + height);
-            this.ctx.lineTo(tx + width, cy - sideH);
-            this.ctx.lineTo(tx + width, cy);
-            this.ctx.lineTo(tx, cy + height);
-            this.ctx.closePath();
-            this.ctx.fill();
-            this.ctx.stroke();
-            
-            let pipNum = i === count - 1 ? Math.min(count, 6) : i % 6 + 1;
-            let topCy = cy - sideH;
-            let dots = [];
-            pipNum === 1 ? dots = [[0, 0]] : pipNum === 2 ? dots = [[-.4, -.4], [.4, .4]] : pipNum === 3 ? dots = [[-.4, -.4], [0, 0], [.4, .4]] : pipNum === 4 ? dots = [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]] : pipNum === 5 ? dots = [[-.4, -.4], [.4, -.4], [0, 0], [-.4, .4], [.4, .4]] : pipNum === 6 && (dots = [[-.4, -.4], [-.4, 0], [-.4, .4], [.4, -.4], [.4, 0], [.4, .4]]);
-            
-            let pipRadius = pipNum === 1 ? width * .22 : width * .12
-            let dotColor = pipNum === 1 ? `#ff3333` : `#ffffff`;
-            dots.forEach(pt => {
-                let n_x = tx + (pt[0] - pt[1]) * (width * .45);
-                let r_y = topCy + (pt[0] + pt[1]) * (dots * .45);
-                this.ctx.save();
-                this.ctx.translate(n_x, r_y);
-                this.ctx.scale(1, .5);
-                this.ctx.fillStyle = dotColor;
-                this.ctx.beginPath();
-                this.ctx.arc(0, 0, pipRadius, 0, Math.PI * 2);
-                this.ctx.fill();
-                this.ctx.restore()
-            })
+          }
         }
-        
-        // 上部のテキストの高さも2列の場合に合わせて調整
-        let topStackIdx = isDouble ? Math.floor((count - 1) / 2) : count - 1;
-        let textL = y - topStackIdx * stepY - sideH - height - 4;
-        this.ctx.fillStyle = `#ffffff`, this.ctx.font = `bold ${Math.max(Math.floor(width * 1.3), 11)}px sans-serif`, this.ctx.textAlign = `center`, this.ctx.textBaseline = `bottom`, this.ctx.shadowColor = `black`, this.ctx.shadowBlur = 4, this.ctx.fillText(count, x, textL), this.ctx.shadowBlur = 0
-    }
-*/
-    drawDiceStack(x, y, count, color) {
-        let width = Math.max(CONFIG.hexSize * .72, 6);
-        let height = width * .75;
-        let stepH = width * 1;
-        let stepY = stepH * 1;
+      });
+    });
+  }
 
-        let isDouble = count >= 5;
-        let xOffset = width * 0.5; // 左右のずれ幅
+  drawDiceStack(x, y, count, baseColor) {
+    let size = Math.max(CONFIG.hexSize * 0.65, 6);
+    let rh = size * 0.75,
+      dy = size * 0.85;
+    let isSplit = count >= 5;
+    let offset = size * 0.5;
+    let startY = y;
 
-        let startY = y;
-
-        for (let i = 0; i < count; i++) {
-            let tx = x;
-            let stackIdx = i;
-
-            if (isDouble) {
-                if (i < 4) {
-                    // 4個目までは左側の列に積む
-                    tx = x - xOffset;
-                    stackIdx = i;
-                } else {
-                    // 5個目以降は右側の列に積む
-                    tx = x + xOffset;
-                    stackIdx = i - 4;
-                    startY = y+ height;
-                }
-            }
-
-            let cy = startY - stackIdx * stepY;
-            let topColor = this.shadeColor(color, 30); 
-            let leftColor = this.shadeColor(color, -5);
-            let rightColor = this.shadeColor(color, -25);
-            
-            this.ctx.lineWidth = 2;
-            this.ctx.lineJoin = `round`;
-            this.ctx.strokeStyle = `rgba(0,0,0,0.4)`;
-            
-            // ダイス本体の描画
-            this.ctx.fillStyle = topColor;
-            this.ctx.beginPath(); 
-            this.ctx.moveTo(tx, cy - stepH - height); 
-            this.ctx.lineTo(tx + width, cy - stepH); 
-            this.ctx.lineTo(tx, cy - stepH + height); 
-            this.ctx.lineTo(tx - width, cy - stepH); 
-            this.ctx.closePath(); 
-            this.ctx.fill(); 
-            this.ctx.stroke();
-            
-            this.ctx.fillStyle = leftColor;
-            this.ctx.beginPath(); 
-            this.ctx.moveTo(tx - width, cy - stepH); 
-            this.ctx.lineTo(tx, cy - stepH + height); 
-            this.ctx.lineTo(tx, cy + height); 
-            this.ctx.lineTo(tx - width, cy); 
-            this.ctx.closePath(); 
-            this.ctx.fill(); 
-            this.ctx.stroke();
-            
-            this.ctx.fillStyle = rightColor;
-            this.ctx.beginPath(); 
-            this.ctx.moveTo(tx, cy - stepH + height); 
-            this.ctx.lineTo(tx + width, cy - stepH); 
-            this.ctx.lineTo(tx + width, cy); 
-            this.ctx.lineTo(tx, cy + height); 
-            this.ctx.closePath(); 
-            this.ctx.fill(); 
-            this.ctx.stroke();
-            
-            // ダイスの目の描画
-            let pipNum = i === count - 1 ? Math.min(count, 6) : i % 6 + 1;
-            let topCy = cy - stepH;
-            let dots = [];
-            pipNum === 1 ? dots = [[0, 0]] : pipNum === 2 ? dots = [[-.4, -.4], [.4, .4]] : pipNum === 3 ? dots = [[-.4, -.4], [0, 0], [.4, .4]] : pipNum === 4 ? dots = [[-.4, -.4], [.4, -.4], [-.4, .4], [.4, .4]] : pipNum === 5 ? dots = [[-.4, -.4], [.4, -.4], [0, 0], [-.4, .4], [.4, .4]] : pipNum === 6 && (dots = [[-.4, -.4], [-.4, 0], [-.4, .4], [.4, -.4], [.4, 0], [.4, .4]]);
-            
-            let pipRadius = pipNum === 1 ? width * .32 : width * .18;
-            let dotColor = pipNum === 1 ? `#000000` : `#000000`;
-            dots.forEach(pt => {
-                let n_x = tx + (pt[0] - pt[1]) * (width * .45), r_y = topCy + (pt[0] + pt[1]) * (height * .45);
-                this.ctx.save(); 
-                this.ctx.translate(n_x, r_y); 
-                this.ctx.scale(1, .5); 
-                this.ctx.fillStyle = dotColor; 
-                this.ctx.beginPath(); 
-                this.ctx.arc(0, 0, pipRadius, 0, Math.PI * 2); 
-                this.ctx.fill(); 
-                this.ctx.restore();
-            });
+    for (let i = 0; i < count; i++) {
+      let dx = x,
+        layer = i;
+      if (isSplit) {
+        if (i < 4) {
+          dx = x - offset;
+          layer = i;
+        } else {
+          dx = x + offset;
+          layer = i - 4;
+          startY = y + rh;
         }
-        
-        /*
-        // 合計数のテキスト位置を、一番高い列に合わせて調整
-        let maxStackIdx = isDouble ? Math.max(3, count - 5) : count - 1;
-        let textL = startY - maxStackIdx * stepY - stepH - height - 4;
-        this.ctx.fillStyle = `#ffffff`; 
-        this.ctx.font = `bold ${Math.max(Math.floor(width * 1.3), 11)}px sans-serif`; 
-        this.ctx.textAlign = `center`; 
-        this.ctx.textBaseline = `bottom`; 
-        this.ctx.shadowColor = `black`; 
-        this.ctx.shadowBlur = 4; 
-        this.ctx.fillText(count, x, textL); 
-        this.ctx.shadowBlur = 0;
-        */
-    }
+      }
+      let my = startY - layer * dy;
+      let topC = this.adjustColor(baseColor, 35);
+      let leftC = this.adjustColor(baseColor, -5);
+      let rightC = this.adjustColor(baseColor, -25);
 
-    shadeColor(col, pct) {
-        let R = parseInt(col.substring(1,3),16), G = parseInt(col.substring(3,5),16), B = parseInt(col.substring(5,7),16);
-        R = Math.min(255, parseInt(R * (100 + pct) / 100)); G = Math.min(255, parseInt(G * (100 + pct) / 100)); B = Math.min(255, parseInt(B * (100 + pct) / 100));
-        return "#" + (R<16?"0":"")+R.toString(16) + (G<16?"0":"")+G.toString(16) + (B<16?"0":"")+B.toString(16);
+      this.ctx.lineWidth = 1.2;
+      this.ctx.strokeStyle = "rgba(0,0,0,0.6)";
+
+      // Top Face
+      this.ctx.fillStyle = topC;
+      this.ctx.beginPath();
+      this.ctx.moveTo(dx, my - size - rh);
+      this.ctx.lineTo(dx + size, my - size);
+      this.ctx.lineTo(dx, my - size + rh);
+      this.ctx.lineTo(dx - size, my - size);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Left Face
+      this.ctx.fillStyle = leftC;
+      this.ctx.beginPath();
+      this.ctx.moveTo(dx - size, my - size);
+      this.ctx.lineTo(dx, my - size + rh);
+      this.ctx.lineTo(dx, my + rh);
+      this.ctx.lineTo(dx - size, my);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Right Face
+      this.ctx.fillStyle = rightC;
+      this.ctx.beginPath();
+      this.ctx.moveTo(dx, my - size + rh);
+      this.ctx.lineTo(dx + size, my - size);
+      this.ctx.lineTo(dx + size, my);
+      this.ctx.lineTo(dx, my + rh);
+      this.ctx.closePath();
+      this.ctx.fill();
+      this.ctx.stroke();
+
+      // Pip Dots
+      let val = i === count - 1 ? Math.min(count, 6) : (i % 6) + 1;
+      let pY = my - size;
+      let dots = [];
+      if (val === 1) dots = [[0, 0]];
+      else if (val === 2)
+        dots = [
+          [-0.4, -0.4],
+          [0.4, 0.4],
+        ];
+      else if (val === 3)
+        dots = [
+          [-0.4, -0.4],
+          [0, 0],
+          [0.4, 0.4],
+        ];
+      else if (val === 4)
+        dots = [
+          [-0.4, -0.4],
+          [0.4, -0.4],
+          [-0.4, 0.4],
+          [0.4, 0.4],
+        ];
+      else if (val === 5)
+        dots = [
+          [-0.4, -0.4],
+          [0.4, -0.4],
+          [0, 0],
+          [-0.4, 0.4],
+          [0.4, 0.4],
+        ];
+      else
+        dots = [
+          [-0.4, -0.4],
+          [-0.4, 0],
+          [-0.4, 0.4],
+          [0.4, -0.4],
+          [0.4, 0],
+          [0.4, 0.4],
+        ];
+
+      let dotRadius = val === 1 ? size * 0.28 : size * 0.15;
+      dots.forEach((d) => {
+        let dotX = dx + (d[0] - d[1]) * (size * 0.4);
+        let dotY = pY + (d[0] + d[1]) * (rh * 0.4);
+        this.ctx.save();
+        this.ctx.translate(dotX, dotY);
+        this.ctx.scale(1, 0.5);
+        this.ctx.fillStyle = "#0f172a";
+        this.ctx.beginPath();
+        this.ctx.arc(0, 0, dotRadius, 0, Math.PI * 2);
+        this.ctx.fill();
+        this.ctx.restore();
+      });
     }
+  }
+
+  adjustColor(hex, percent) {
+    let num = parseInt(hex.replace("#", ""), 16);
+    let amt = Math.round(2.55 * percent);
+    let R = (num >> 16) + amt;
+    let G = ((num >> 8) & 0x00ff) + amt;
+    let B = (num & 0x0000ff) + amt;
+    return (
+      "#" +
+      (
+        0x1000000 +
+        (R < 255 ? (R < 1 ? 0 : R) : 255) * 0x10000 +
+        (G < 255 ? (G < 1 ? 0 : G) : 255) * 0x100 +
+        (B < 255 ? (B < 1 ? 0 : B) : 255)
+      )
+        .toString(16)
+        .slice(1)
+    );
+  }
 }
+export { CanvasRenderer };

@@ -143,7 +143,6 @@ const handlePointerUp = (e) => {
         }
     }
 };
-
 // --- 戦績・対戦履歴の保存関数 (localStorage を利用) ---
 function saveGameResult(status) {
     // 既存の履歴を取得（なければ空配列）

@@ -1,107 +1,140 @@
 import { CONFIG } from '../config.js';
-import { getValidNeighbors, getHexCenter } from '../utils/hexUtils.js';
 import { Territory } from '../models/Territory.js';
+import { getAdjacentHexes, hexToPixel } from '../utils/hexUtils.js';
 
-export class MapGenerator {
-    constructor() {
-        this.hexGrid = [];
-        this.territories = [];
-    }
+// Map Procedural Generator
+      class MapGenerator {
+        constructor() {
+          this.hexGrid = [];
+          this.territories = [];
+        }
 
-    generate(numTerritories) {
-        let mapSuccess = false;
-        while (!mapSuccess) {
+        generate(count) {
+          let success = false;
+          let attempts = 0;
+          while (!success && attempts < 10) {
+            attempts++;
             this.initGrid();
             this.territories = [];
-            let mapFailed = false;
-
-            for (let tId = 0; tId < numTerritories; tId++) {
-                if (!this.createSingleTerritory(tId)) {
-                    mapFailed = true; break;
-                }
+            let failed = false;
+            for (let i = 0; i < count; i++) {
+              if (!this.createTerritory(i)) {
+                failed = true;
+                break;
+              }
             }
-            if (!mapFailed) mapSuccess = true;
+            if (!failed) success = true;
+          }
+          return { grid: this.hexGrid, territories: this.territories };
         }
-        return { grid: this.hexGrid, territories: this.territories };
-    }
 
-    initGrid() {
-        this.hexGrid = Array.from({ length: CONFIG.gridWidth }, (_, c) =>
-            Array.from({ length: CONFIG.gridHeight }, (_, r) => ({ col: c, row: r, active: false, territoryId: null }))
-        );
-    }
+        initGrid() {
+          this.hexGrid = Array.from({ length: CONFIG.gridWidth }, (_, col) =>
+            Array.from({ length: CONFIG.gridHeight }, (_, row) => ({
+              col,
+              row,
+              active: false,
+              territoryId: null,
+            })),
+          );
+        }
 
-    createSingleTerritory(tId) {
-        for (let attempt = 0; attempt < CONFIG.mapGenerationMaxRetries; attempt++) {
-            const seed = this.findSeed(tId);
+        createTerritory(id) {
+          for (let retry = 0; retry < CONFIG.mapGenerationMaxRetries; retry++) {
+            let seed = this.findSeed(id);
             if (!seed) return false;
 
-            let tempHexes = [{c: seed.col, r: seed.row}];
-            this.setHexActive(seed.col, seed.row, tId, true);
+            let hexes = [{ c: seed.col, r: seed.row }];
+            this.setHex(seed.col, seed.row, id, true);
+            let blocked = false;
 
-            let trapped = false;
-            while (tempHexes.length < CONFIG.targetHexesPerTerritory) {
-                const next = this.findNextNeighbor(tempHexes);
-                if (!next) { trapped = true; break; }
-                this.setHexActive(next.col, next.row, tId, true);
-                tempHexes.push({c: next.col, r: next.row});
+            while (hexes.length < CONFIG.targetHexesPerTerritory) {
+              let neighbor = this.findNeighbor(hexes);
+              if (!neighbor) {
+                blocked = true;
+                break;
+              }
+              this.setHex(neighbor.col, neighbor.row, id, true);
+              hexes.push({ c: neighbor.col, r: neighbor.row });
             }
 
-            if (!trapped && tempHexes.length === CONFIG.targetHexesPerTerritory) {
-                const centerHex = this.calculateCentroid(tempHexes);
-                this.territories.push(new Territory(tId, tempHexes, centerHex));
-                return true;
-            } else {
-                tempHexes.forEach(h => this.setHexActive(h.c, h.r, null, false)); // 失敗時はリセット
+            if (!blocked && hexes.length === CONFIG.targetHexesPerTerritory) {
+              let center = this.calculateCentroid(hexes);
+              this.territories.push(new Territory(id, hexes, center));
+              return true;
             }
+            hexes.forEach((h) => this.setHex(h.c, h.r, null, false));
+          }
+          return false;
         }
-        return false;
-    }
 
-    findSeed(tId) {
-        if (tId === 0) return { col: Math.floor(CONFIG.gridWidth / 2), row: Math.floor(CONFIG.gridHeight / 2) };
-        const available = [];
-        for (let c = 0; c < CONFIG.gridWidth; c++) {
+        findSeed(id) {
+          if (id === 0)
+            return {
+              col: Math.floor(CONFIG.gridWidth / 2),
+              row: Math.floor(CONFIG.gridHeight / 2),
+            };
+          let candidates = [];
+          for (let c = 0; c < CONFIG.gridWidth; c++) {
             for (let r = 0; r < CONFIG.gridHeight; r++) {
-                if (!this.hexGrid[c][r].active && getValidNeighbors(c, r).some(n => this.hexGrid[n.col][n.row].active)) {
-                    available.push({col: c, row: r});
-                }
+              if (
+                !this.hexGrid[c][r].active &&
+                getAdjacentHexes(c, r).some(
+                  (n) => this.hexGrid[n.col][n.row].active,
+                )
+              ) {
+                candidates.push({ col: c, row: r });
+              }
             }
+          }
+          return candidates.length
+            ? candidates[Math.floor(Math.random() * candidates.length)]
+            : null;
         }
-        return available.length ? available[Math.floor(Math.random() * available.length)] : null;
-    }
 
-    findNextNeighbor(tempHexes) {
-        const potential = [];
-        for (let h of tempHexes) {
-            getValidNeighbors(h.c, h.r).forEach(n => {
-                if (!this.hexGrid[n.col][n.row].active && !potential.some(pn => pn.col === n.col && pn.row === n.row)) {
-                    potential.push(n);
-                }
+        findNeighbor(hexList) {
+          let candidates = [];
+          for (let hex of hexList) {
+            getAdjacentHexes(hex.c, hex.r).forEach((n) => {
+              if (
+                !this.hexGrid[n.col][n.row].active &&
+                !candidates.some((c) => c.col === n.col && c.row === n.row)
+              ) {
+                candidates.push(n);
+              }
             });
+          }
+          return candidates.length
+            ? candidates[Math.floor(Math.random() * candidates.length)]
+            : null;
         }
-        return potential.length ? potential[Math.floor(Math.random() * potential.length)] : null;
-    }
 
-    calculateCentroid(hexes) {
-        let sumX = 0, sumY = 0;
-        hexes.forEach(h => {
-            const p = getHexCenter(h.c, h.r, CONFIG.hexSize);
-            sumX += p.x; sumY += p.y;
-        });
-        const cX = sumX / hexes.length, cY = sumY / hexes.length;
-        
-        let bestHex = hexes[0], minDist = Infinity;
-        hexes.forEach(h => {
-            const p = getHexCenter(h.c, h.r, CONFIG.hexSize);
-            const dist = Math.hypot(p.x - cX, p.y - cY);
-            if (dist < minDist) { minDist = dist; bestHex = h; }
-        });
-        return { c: bestHex.c, r: bestHex.r };
-    }
+        calculateCentroid(hexList) {
+          let sumX = 0,
+            sumY = 0;
+          hexList.forEach((h) => {
+            let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
+            sumX += pos.x;
+            sumY += pos.y;
+          });
+          let avgX = sumX / hexList.length,
+            avgY = sumY / hexList.length;
+          let closest = hexList[0],
+            minDst = Infinity;
+          hexList.forEach((h) => {
+            let pos = hexToPixel(h.c, h.r, CONFIG.hexSize);
+            let dst = Math.hypot(pos.x - avgX, pos.y - avgY);
+            if (dst < minDst) {
+              minDst = dst;
+              closest = h;
+            }
+          });
+          return { c: closest.c, r: closest.r };
+        }
 
-    setHexActive(col, row, tId, isActive) {
-        this.hexGrid[col][row].active = isActive;
-        this.hexGrid[col][row].territoryId = tId;
-    }
-}
+        setHex(col, row, terrId, active) {
+          this.hexGrid[col][row].active = active;
+          this.hexGrid[col][row].territoryId = terrId;
+        }
+      }
+export { MapGenerator };
