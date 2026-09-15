@@ -1,129 +1,413 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
     <title>Local Rule Dice Wars</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="./style.css">
-</head>
-<body>
-<div id="game-container">
-    <div id="ui-layer">
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div id="game-container">
+      <div id="ui-layer">
         <!-- 上段: マップ(canvas)とPlayers Info。 min-h-0 を設定してはみ出しを防ぐ -->
         <div class="flex flex-row flex-grow w-full min-h-0">
-            
-            <!-- マップを表示する canvas-container -->
-            <div id="canvas-container" class="flex-grow relative pointer-events-auto h-full overflow-hidden">
-                <canvas id="gameCanvas"></canvas>
+          <!-- マップを表示する canvas-container -->
+          <div
+            id="canvas-container"
+            class="flex-grow relative pointer-events-auto h-full overflow-hidden"
+          >
+            <canvas id="gameCanvas"></canvas>
+          </div>
+
+          <!-- Players Info等 (pointer-events-auto で操作可能に、オーバーフロー時はスクロール) -->
+          <div
+            class="flex flex-col items-end pointer-events-auto p-2 overflow-y-auto shrink-0 z-10"
+          >
+            <div
+              id="turn-info"
+              class="ui-panel text-xl font-bold min-w-[200px] text-center"
+              style="margin-bottom: 0.25rem"
+            >
+              Waiting to start...
             </div>
 
-            <!-- Players Info等 (pointer-events-auto で操作可能に、オーバーフロー時はスクロール) -->
-            <div class="flex flex-col items-end pointer-events-auto p-2 overflow-y-auto shrink-0 z-10">
-                <div id="turn-info" class="ui-panel text-xl font-bold min-w-[200px] text-center" style="margin-bottom: 0.25rem;">Waiting to start...</div>
-                
-                <div class="ui-panel min-w-[200px]" style="margin-top: 0.25rem;">
-                    <h3 class="font-bold mb-2 border-b border-gray-500 pb-1">Players Info</h3>
-                    <div id="player-stats" class="text-sm"></div>
-                </div>
+            <div class="ui-panel min-w-[200px]" style="margin-top: 0.25rem">
+              <h3 class="font-bold mb-2 border-b border-gray-500 pb-1">
+                Players Info
+              </h3>
+              <div id="player-stats" class="text-sm"></div>
             </div>
+          </div>
         </div>
-        
+
         <!-- 下段: ボタンを表示するdiv。 shrink-0 で潰れないように確実に表示する -->
-        <div class="flex justify-end p-4 gap-4 shrink-0 pointer-events-auto z-10">
-            <button id="in-game-settings-btn" class="ui-panel bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-gray-500">設定確認</button>
-            <button id="quit-game-btn" class="ui-panel bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-red-500">ゲーム終了</button>
-            <button id="end-turn-btn" class="ui-panel bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-yellow-400">End Turn</button>
+        <div
+          class="flex justify-end p-4 gap-4 shrink-0 pointer-events-auto z-10"
+        >
+          <button
+            id="in-game-settings-btn"
+            class="ui-panel bg-gray-600 hover:bg-gray-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-gray-500"
+          >
+            設定確認
+          </button>
+          <button
+            id="quit-game-btn"
+            class="ui-panel bg-red-700 hover:bg-red-600 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-red-500"
+          >
+            ゲーム終了
+          </button>
+          <button
+            id="end-turn-btn"
+            class="ui-panel bg-yellow-600 hover:bg-yellow-500 text-white font-bold py-3 px-6 rounded-lg text-lg hidden shadow-lg border border-yellow-400"
+          >
+            End Turn
+          </button>
         </div>
-    </div>
+      </div>
 
-    <!-- Start Screen -->
-    <div id="start-screen">
-        <h1 class="text-6xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-lg">DICE WARS</h1>
-        <p class="mb-8 text-gray-300 text-lg">Local Rules Edition</p>
-        <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full">
-            <h2 class="text-2xl font-bold mb-6 text-center text-white">Select Number of Players</h2>
-            <div class="flex justify-center gap-4 mb-8">
-                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="2">2</button>
-                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="3">3</button>
-                <button class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl" data-players="4">4</button>
-            </div>
-            
-            <button id="open-settings-btn" class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded mb-6 border border-gray-500">
-                ⚙️ ルール設定
+      <!-- Start Screen -->
+      <div id="start-screen">
+        <h1
+          class="text-6xl font-extrabold mb-8 text-transparent bg-clip-text bg-gradient-to-r from-yellow-400 to-red-500 drop-shadow-lg"
+        >
+          DICE WARS
+        </h1>
+        <p class="mb-8 text-gray-300 text-lg">Local and Online Dice Wars</p>
+        <div id="mode-selection" class="start-panel">
+          <h2 class="text-2xl font-bold mb-6 text-center text-white">
+            ゲームモードを選択
+          </h2>
+          <div class="flex justify-center gap-4">
+            <button
+              id="local-mode-btn"
+              class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded text-lg"
+            >
+              ローカル対戦
             </button>
-
-            
+            <button
+              id="online-mode-btn"
+              class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-6 rounded text-lg"
+            >
+              オンライン対戦
+            </button>
+          </div>
         </div>
-    </div>
 
-    <!-- Battle Modal -->
-    <div id="battle-modal">
-        <h2 id="battle-title" class="text-3xl font-bold mb-4 text-white">Battle!</h2>
+        <div id="local-setup" class="start-panel hidden">
+          <h2 class="text-2xl font-bold mb-6 text-center text-white">
+            ローカルの人数を選択
+          </h2>
+          <div class="flex justify-center gap-4 mb-8">
+            <button
+              class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl"
+              data-players="2"
+            >
+              2
+            </button>
+            <button
+              class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl"
+              data-players="3"
+            >
+              3
+            </button>
+            <button
+              class="player-btn bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded w-16 h-16 text-xl"
+              data-players="4"
+            >
+              4
+            </button>
+          </div>
+          <button
+            id="open-settings-btn"
+            class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded mb-4 border border-gray-500"
+          >
+            ⚙️ ルール設定
+          </button>
+          <button
+            class="back-to-mode bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
+          >
+            戻る
+          </button>
+        </div>
+
+        <div id="online-setup" class="start-panel hidden">
+          <h2 class="text-2xl font-bold mb-6 text-center text-white">
+            オンライン対戦
+          </h2>
+          <label
+            class="block text-left text-gray-300 mb-2"
+            for="online-player-name"
+            >表示名</label
+          >
+          <input
+            id="online-player-name"
+            class="w-full p-3 mb-4 bg-gray-700 text-white rounded border border-gray-500"
+            maxlength="16"
+            placeholder="プレイヤー名"
+          />
+          <div class="flex justify-center gap-3 mb-5">
+            <button
+              id="create-room-btn"
+              class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-3 px-4 rounded"
+            >
+              ルームを作成
+            </button>
+            <button
+              id="join-room-btn"
+              class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 rounded"
+            >
+              コードで参加
+            </button>
+          </div>
+          <div id="join-room-form" class="hidden mb-4">
+            <input
+              id="room-code-input"
+              class="w-full p-3 bg-gray-700 text-white rounded border border-gray-500 uppercase"
+              maxlength="32"
+              placeholder="6桁のルームコード"
+              inputmode="numeric"
+              pattern="[0-9]{6}"
+              minlength="6"
+              maxlength="6"
+            />
+            <button
+              id="connect-room-btn"
+              class="w-full mt-3 bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-4 rounded"
+            >
+              接続
+            </button>
+          </div>
+          <button
+            class="back-to-mode bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-4 rounded"
+          >
+            戻る
+          </button>
+        </div>
+
+        <div id="online-lobby" class="start-panel hidden">
+          <h2 class="text-2xl font-bold mb-4 text-center text-white">
+            オンラインロビー
+          </h2>
+          <p id="connection-status" class="text-gray-300 mb-2">接続中...</p>
+          <p class="text-gray-300">
+            ルームコード:
+            <strong id="room-code" class="text-yellow-300 tracking-widest"
+              >---</strong
+            >
+          </p>
+          <div class="mt-5 text-left">
+            <div class="flex items-center justify-between text-gray-300 mb-2">
+              <span>現在の参加人数</span>
+              <strong id="online-player-count" class="text-yellow-300"
+                >1 / 4人</strong
+              >
+            </div>
+            <h3 class="text-gray-300 mt-4 mb-2">参加者</h3>
+            <ul
+              id="online-player-list"
+              class="bg-gray-900 rounded p-3 min-h-16"
+            ></ul>
+          </div>
+          <div class="flex justify-center gap-3 mt-5">
+            <button
+              id="online-settings-btn"
+              class="bg-gray-700 hover:bg-gray-600 text-white font-bold py-2 px-4 rounded border border-gray-500"
+            >
+              ルール設定
+            </button>
+            <button
+              id="start-online-btn"
+              class="bg-emerald-600 hover:bg-emerald-500 text-white font-bold py-2 px-4 rounded"
+            >
+              ゲーム開始
+            </button>
+            <button
+              id="leave-online-btn"
+              class="bg-red-700 hover:bg-red-600 text-white font-bold py-2 px-4 rounded"
+            >
+              退出
+            </button>
+          </div>
+          <p id="online-error" class="text-red-300 mt-4 min-h-6"></p>
+        </div>
+      </div>
+
+      <!-- Battle Modal -->
+      <div id="battle-modal">
+        <h2 id="battle-title" class="text-3xl font-bold mb-4 text-white">
+          Battle!
+        </h2>
         <div class="flex justify-between items-center gap-8">
-            <div id="atk-side" class="flex flex-col items-center">
-                <span class="text-xl font-bold mb-2" id="atk-player-name">Attacker</span>
-                <div class="text-5xl font-bold text-red-500" id="atk-score">0</div>
-                <div class="text-sm text-gray-400 mt-2">Dice: <span id="atk-dice-count">0</span></div>
+          <div id="atk-side" class="flex flex-col items-center">
+            <span class="text-xl font-bold mb-2" id="atk-player-name"
+              >Attacker</span
+            >
+            <div class="text-5xl font-bold text-red-500" id="atk-score">0</div>
+            <div class="text-sm text-gray-400 mt-2">
+              Dice: <span id="atk-dice-count">0</span>
             </div>
-            <div class="text-3xl font-bold text-yellow-500">VS</div>
-            <div id="def-side" class="flex flex-col items-center">
-                <span class="text-xl font-bold mb-2" id="def-player-name">Defender</span>
-                <div class="text-5xl font-bold text-blue-500" id="def-score">0</div>
-                <div class="text-sm text-gray-400 mt-2">Dice: <span id="def-dice-count">0</span></div>
+          </div>
+          <div class="text-3xl font-bold text-yellow-500">VS</div>
+          <div id="def-side" class="flex flex-col items-center">
+            <span class="text-xl font-bold mb-2" id="def-player-name"
+              >Defender</span
+            >
+            <div class="text-5xl font-bold text-blue-500" id="def-score">0</div>
+            <div class="text-sm text-gray-400 mt-2">
+              Dice: <span id="def-dice-count">0</span>
             </div>
+          </div>
         </div>
-        <div id="battle-result" class="mt-6 text-2xl font-bold text-yellow-400 h-8"></div>
+        <div
+          id="battle-result"
+          class="mt-6 text-2xl font-bold text-yellow-400 h-8"
+        ></div>
+      </div>
     </div>
-</div>
-<div id="settings-modal" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[60] flex items-center justify-center pointer-events-auto">
-    <div class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full">
-        <h2 class="text-2xl font-bold mb-6 text-center text-white">ゲーム設定</h2>
-        
+
+    <div
+      id="room-error-modal"
+      class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[80] flex items-center justify-center pointer-events-auto"
+    >
+      <div
+        class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 max-w-sm w-full text-center"
+      >
+        <h3 class="text-xl font-bold mb-4 text-white">
+          ルームが見つかりませんでした
+        </h3>
+        <p id="room-error-message" class="text-gray-300 mb-5">
+          ルームコードを確認してください。
+        </p>
+        <button
+          id="close-room-error-btn"
+          class="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded"
+        >
+          閉じる
+        </button>
+      </div>
+    </div>
+    <div
+      id="settings-modal"
+      class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[60] flex items-center justify-center pointer-events-auto"
+    >
+      <div
+        class="bg-gray-800 p-8 rounded-xl shadow-2xl border border-gray-700 max-w-md w-full"
+      >
+        <h2 class="text-2xl font-bold mb-6 text-center text-white">
+          ゲーム設定
+        </h2>
+
         <!-- ここにチェックボックスやスライダーを配置 -->
-        <div class="flex items-center justify-between mb-4 p-3 bg-gray-900 rounded">
-            <label for="latter-handicap-rule" class="text-white font-bold cursor-pointer">後手ボーナスダイス</label>
-            <input type="checkbox" id="latter-handicap-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="latterBonusDice">
+        <div
+          class="flex items-center justify-between mb-4 p-3 bg-gray-900 rounded"
+        >
+          <label
+            for="latter-handicap-rule"
+            class="text-white font-bold cursor-pointer"
+            >後手ボーナスダイス</label
+          >
+          <input
+            type="checkbox"
+            id="latter-handicap-rule"
+            class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed"
+            data-rule="latterBonusDice"
+          />
         </div>
         <!-- 大国ペナルティの設定項目 -->
         <div class="flex flex-col mb-4 p-3 bg-gray-900 rounded">
-            <div class="flex items-center justify-between mb-2">
-                <label for="great-power-rule" class="text-white font-bold cursor-pointer">大国ペナルティ</label>
-                <input type="checkbox" id="great-power-rule" class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="greatPower">
-            </div>
-            <div class="flex items-center justify-between text-sm pl-2">
-                <span class="text-gray-400">適用する領土数（閾値）:</span>
-                <input type="number" id="great-power-threshold" class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed" value="16" min="10" max="25">
-            </div>
+          <div class="flex items-center justify-between mb-2">
+            <label
+              for="great-power-rule"
+              class="text-white font-bold cursor-pointer"
+              >大国ペナルティ</label
+            >
+            <input
+              type="checkbox"
+              id="great-power-rule"
+              class="w-6 h-6 cursor-pointer accent-red-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed"
+              data-rule="greatPower"
+            />
+          </div>
+          <div class="flex items-center justify-between text-sm pl-2">
+            <span class="text-gray-400">適用する領土数（閾値）:</span>
+            <input
+              type="number"
+              id="great-power-threshold"
+              class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed"
+              value="16"
+              min="10"
+              max="25"
+            />
+          </div>
         </div>
 
         <!-- 小国ボーナスの設定項目 -->
         <div class="flex flex-col mb-6 p-3 bg-gray-900 rounded">
-            <div class="flex items-center justify-between mb-2">
-                <label for="small-country-rule" class="text-white font-bold cursor-pointer">小国ボーナス</label>
-                <input type="checkbox" id="small-country-rule" class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed" data-rule="smallCountryBonus">
-            </div>
-            <div class="flex items-center justify-between text-sm pl-2">
-                <span class="text-gray-400">適用する領土数（閾値）:</span>
-                <input type="number" id="small-country-threshold" class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed" value="5" min="1" max="9">
-            </div>
+          <div class="flex items-center justify-between mb-2">
+            <label
+              for="small-country-rule"
+              class="text-white font-bold cursor-pointer"
+              >小国ボーナス</label
+            >
+            <input
+              type="checkbox"
+              id="small-country-rule"
+              class="w-6 h-6 cursor-pointer accent-blue-500 rule-toggle disabled:opacity-50 disabled:cursor-not-allowed"
+              data-rule="smallCountryBonus"
+            />
+          </div>
+          <div class="flex items-center justify-between text-sm pl-2">
+            <span class="text-gray-400">適用する領土数（閾値）:</span>
+            <input
+              type="number"
+              id="small-country-threshold"
+              class="w-16 p-1 bg-gray-700 text-white rounded border border-gray-500 text-center disabled:opacity-50 disabled:cursor-not-allowed"
+              value="5"
+              min="1"
+              max="9"
+            />
+          </div>
         </div>
 
-        <button id="close-settings-btn" class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded text-lg">
-            設定を閉じる
+        <button
+          id="close-settings-btn"
+          class="w-full bg-green-600 hover:bg-green-500 text-white font-bold py-3 px-6 rounded text-lg"
+        >
+          設定を閉じる
         </button>
+      </div>
     </div>
-</div>
-<!-- ゲーム終了確認モーダル -->
-<div id="quit-modal" class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[70] flex items-center justify-center pointer-events-auto">
-    <div class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 max-w-sm w-full text-center">
-        <h3 class="text-xl font-bold mb-4 text-white">ゲームを終了しますか？</h3>
+    <!-- ゲーム終了確認モーダル -->
+    <div
+      id="quit-modal"
+      class="hidden absolute top-0 left-0 w-full h-full bg-black bg-opacity-80 z-[70] flex items-center justify-center pointer-events-auto"
+    >
+      <div
+        class="bg-gray-800 p-6 rounded-xl shadow-2xl border border-gray-700 max-w-sm w-full text-center"
+      >
+        <h3 class="text-xl font-bold mb-4 text-white">
+          ゲームを終了しますか？
+        </h3>
         <div class="flex justify-center gap-4">
-            <button id="confirm-quit-btn" class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded">はい</button>
-            <button id="cancel-quit-btn" class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded">いいえ</button>
+          <button
+            id="confirm-quit-btn"
+            class="bg-red-600 hover:bg-red-500 text-white font-bold py-2 px-6 rounded"
+          >
+            はい
+          </button>
+          <button
+            id="cancel-quit-btn"
+            class="bg-gray-600 hover:bg-gray-500 text-white font-bold py-2 px-6 rounded"
+          >
+            いいえ
+          </button>
         </div>
+      </div>
     </div>
-</div>
-<script type="module" src="./src/main.js"></script>
-</body>
+    <script type="module" src="./src/main.js"></script>
+  </body>
 </html>
