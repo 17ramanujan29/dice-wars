@@ -138,10 +138,12 @@ export class Renderer {
             [[+1, +1], [+1, 0], [0, -1], [-1, 0], [-1, +1], [0, +1]] 
         ];
 
+        const selectedTerritory = this.game.territories.find(t => t.id === this.game.selectedTerritoryId);
+        
         const sortedTerritories = [
             ...this.game.territories.filter(t => t.id !== this.game.selectedTerritoryId), 
-            this.game.territories.find(t => t.id === this.game.selectedTerritoryId)
-        ].filter(Boolean);
+            ...(selectedTerritory ? [selectedTerritory] : [])
+        ];
 
         sortedTerritories.forEach(t => {
             const isSelected = (t.id === this.game.selectedTerritoryId);
