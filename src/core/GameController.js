@@ -1,5 +1,6 @@
 import { GAME_CONFIG, RENDER_CONFIG, UI_CONFIG } from "../config/index.js";
 import { Player } from "../models/Player.js";
+import { Territory } from "../models/Territory.js";
 import { MapGenerator } from "./MapGenerator.js";
 import { getValidNeighbors } from "../utils/hexUtils.js";
 

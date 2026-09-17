@@ -20,6 +20,26 @@ export class UIManager {
     this.greatPowerThresholdInput = document.getElementById("great-power-threshold");
     this.smallCountryRuleCb = document.getElementById("small-country-rule");
     this.smallCountryThresholdInput = document.getElementById("small-country-threshold");
+    this.latterBonusDiceCb = document.getElementById("latter-handicap-rule");
+
+    // 現在のルール設定を保持（オンライン時にホストから受信した設定を使う）
+    this.rules = {};
+  }
+
+  /**
+   * 現在のルールを設定
+   * @param {Object} rules - ルールオブジェクト
+   */
+  setRules(rules) {
+    this.rules = { ...rules };
+  }
+
+  /**
+   * 現在のルールを取得
+   * @returns {Object}
+   */
+  getRules() {
+    return { ...this.rules };
   }
 
   /**
@@ -30,7 +50,7 @@ export class UIManager {
   setSettingsEditable(editable, checkRules = true) {
     document
       .querySelectorAll(
-        ".rule-toggle, #great-power-threshold, #small-country-threshold, label",
+        ".rule-toggle, #great-power-threshold, #small-country-threshold, #latter-handicap-rule, label",
       )
       .forEach((element) => {
         element.classList.toggle("pointer-events-none", !editable);
@@ -44,9 +64,11 @@ export class UIManager {
         !editable || !this.greatPowerRuleCb.checked;
       this.smallCountryThresholdInput.disabled =
         !editable || !this.smallCountryRuleCb.checked;
+      this.latterBonusDiceCb.disabled = !editable;
     } else {
       this.greatPowerThresholdInput.disabled = !editable;
       this.smallCountryThresholdInput.disabled = !editable;
+      this.latterBonusDiceCb.disabled = !editable;
     }
   }
 
@@ -55,6 +77,25 @@ export class UIManager {
    * @param {boolean} [editable=false] - 設定を編集可能にするか
    */
   showSettingsModal(editable = false) {
+    // 現在のルール設定をUIに反映（ホストから受信した設定を使用）
+    if (this.rules) {
+      if (this.rules.greatPower !== undefined) {
+        this.greatPowerRuleCb.checked = this.rules.greatPower;
+      }
+      if (this.rules.smallCountryBonus !== undefined) {
+        this.smallCountryRuleCb.checked = this.rules.smallCountryBonus;
+      }
+      if (this.rules.latterBonusDice !== undefined) {
+        this.latterBonusDiceCb.checked = this.rules.latterBonusDice;
+      }
+      if (this.rules.greatPowerThreshold !== undefined) {
+        this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
+      }
+      if (this.rules.smallCountryThreshold !== undefined) {
+        this.smallCountryThresholdInput.value = this.rules.smallCountryThreshold;
+      }
+    }
+    
     this.setSettingsEditable(editable);
     this.settingsModalEl.classList.remove("hidden");
   }
@@ -226,6 +267,33 @@ export class UIManager {
     );
     this.onlineLobbyEl.classList.remove("hidden");
 
+    // ホストから受信したルール設定を保存
+    if (lobby.rules) {
+      this.rules = { ...lobby.rules };
+
+      // 受信したルールでUIを即座に更新
+      if (this.rules.greatPower !== undefined) {
+        this.greatPowerRuleCb.checked = this.rules.greatPower;
+      }
+      if (this.rules.smallCountryBonus !== undefined) {
+        this.smallCountryRuleCb.checked = this.rules.smallCountryBonus;
+      }
+      if (this.rules.latterBonusDice !== undefined) {
+        this.latterBonusDiceCb.checked = this.rules.latterBonusDice;
+      }
+      if (this.rules.greatPowerThreshold !== undefined) {
+        this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
+      }
+      if (this.rules.smallCountryThreshold !== undefined) {
+        this.smallCountryThresholdInput.value = this.rules.smallCountryThreshold;
+      }
+      // ルールUIの同期を更新
+      this.syncRuleToggleInput(this.greatPowerRuleCb, this.greatPowerThresholdInput);
+      this.syncRuleToggleInput(this.smallCountryRuleCb, this.smallCountryThresholdInput);
+    } else {
+      this.rules = {};
+    }
+
     document.getElementById("room-code").innerText = lobby.roomId || "参加済み";
     document.getElementById("connection-status").innerText =
       lobby.role === "host" ? "ホストとして待機中" : "参加者として待機中";
@@ -245,6 +313,25 @@ export class UIManager {
       !isHost || lobby.players.length < 2;
     document.getElementById("start-online-btn").title =
       lobby.players.length >= 2 ? "" : "参加者が2人以上必要です";
+
+    // ホストが設定したルールをUIに反映（参加者側で設定確認画面を開いたときに表示される）
+    if (this.rules) {
+      if (this.rules.greatPower !== undefined) {
+        this.greatPowerRuleCb.checked = this.rules.greatPower;
+      }
+      if (this.rules.smallCountryBonus !== undefined) {
+        this.smallCountryRuleCb.checked = this.rules.smallCountryBonus;
+      }
+      if (this.rules.greatPowerThreshold !== undefined) {
+        this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
+      }
+      if (this.rules.smallCountryThreshold !== undefined) {
+        this.smallCountryThresholdInput.value = this.rules.smallCountryThreshold;
+      }
+      // ルールUIの同期を更新
+      this.syncRuleToggleInput(this.greatPowerRuleCb, this.greatPowerThresholdInput);
+      this.syncRuleToggleInput(this.smallCountryRuleCb, this.smallCountryThresholdInput);
+    }
   }
 
   showOnlineError(message) {
