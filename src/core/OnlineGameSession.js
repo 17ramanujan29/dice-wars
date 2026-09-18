@@ -158,6 +158,23 @@ export class OnlineGameSession {
   }
 
   acceptPlayer(name, peerId) {
+    const existingPlayer = this.players.find(
+      (player) => player.peerId === peerId,
+    );
+    if (existingPlayer) {
+      this.network.send(
+        {
+          type: "join-accepted",
+          playerId: existingPlayer.id,
+          players: this.players.map(
+            ({ peerId: _, ...publicPlayer }) => publicPlayer,
+          ),
+        },
+        peerId,
+      );
+      return;
+    }
+
     if (this.gameStarted || this.players.length >= 4) return;
     const player = {
       id: this.players.length,
