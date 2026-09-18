@@ -16,6 +16,7 @@ export class GameController {
       greatPower: false,
       latterBonusDice: false,
       smallCountryBonus: false,
+      eightDiceAdjacentLimit: false,
     };
     this.onStateChange = null;
     this.onBattleStart = null;
@@ -91,6 +92,34 @@ export class GameController {
         valid[Math.floor(Math.random() * valid.length)].dice++;
         pool--;
       }
+      this.enforceEightDiceAdjacentLimit(p.id);
+    });
+  }
+
+  enforceEightDiceAdjacentLimit(pId) {
+    if (!this.rules.eightDiceAdjacentLimit) return;
+    if (
+      this.rules.smallCountryBonus &&
+      this.getMaxConnected(pId) <= this.rules.smallCountryThreshold
+    ) {
+      return;
+    }
+
+    const owned = this.getOwnedTerritories(pId);
+    const eightDiceTerritories = owned.filter(
+      (territory) => territory.dice >= GAME_CONFIG.maxDicePerTerritory,
+    );
+    eightDiceTerritories.forEach((territory) => {
+      owned.forEach((neighbor) => {
+        if (
+          territory.dice >= GAME_CONFIG.maxDicePerTerritory &&
+          neighbor.id !== territory.id &&
+          neighbor.dice > GAME_CONFIG.eightDiceAdjacentLimit &&
+          this.areAdjacent(territory, neighbor)
+        ) {
+          neighbor.dice = GAME_CONFIG.eightDiceAdjacentLimit;
+        }
+      });
     });
   }
 
@@ -162,6 +191,7 @@ export class GameController {
           }
         });
       }
+      this.enforceEightDiceAdjacentLimit(source.owner);
     } else if (atkRoll === defRoll) {
       resultType = "draw";
       source.dice = Math.max(1, Math.floor(source.dice / 2));
@@ -235,6 +265,7 @@ export class GameController {
       valid[Math.floor(Math.random() * valid.length)].dice++;
       count--;
     }
+    this.enforceEightDiceAdjacentLimit(pId);
   }
 
   checkWinCondition() {

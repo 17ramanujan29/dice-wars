@@ -25,6 +25,7 @@ export const GAME_CONFIG = {
   greatPowerMaxDicePerTerritory: 8,
   greatPowerThreshold: 16,
   smallCountryThreshold: 5,
+  eightDiceAdjacentLimit: 7,
 
   // プレイヤー人数ごとの初期領土・総ダイス数設定
   playerSetupMap: {

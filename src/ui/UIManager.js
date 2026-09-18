@@ -21,6 +21,7 @@ export class UIManager {
     this.smallCountryRuleCb = document.getElementById("small-country-rule");
     this.smallCountryThresholdInput = document.getElementById("small-country-threshold");
     this.latterBonusDiceCb = document.getElementById("latter-handicap-rule");
+    this.eightDiceAdjacentLimitCb = document.getElementById("eight-dice-adjacent-limit-rule");
 
     // 現在のルール設定を保持（オンライン時にホストから受信した設定を使う）
     this.rules = {};
@@ -87,6 +88,9 @@ export class UIManager {
       }
       if (this.rules.latterBonusDice !== undefined) {
         this.latterBonusDiceCb.checked = this.rules.latterBonusDice;
+      }
+      if (this.rules.eightDiceAdjacentLimit !== undefined) {
+        this.eightDiceAdjacentLimitCb.checked = this.rules.eightDiceAdjacentLimit;
       }
       if (this.rules.greatPowerThreshold !== undefined) {
         this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
@@ -280,6 +284,9 @@ export class UIManager {
       }
       if (this.rules.latterBonusDice !== undefined) {
         this.latterBonusDiceCb.checked = this.rules.latterBonusDice;
+      }
+      if (this.rules.eightDiceAdjacentLimit !== undefined) {
+        this.eightDiceAdjacentLimitCb.checked = this.rules.eightDiceAdjacentLimit;
       }
       if (this.rules.greatPowerThreshold !== undefined) {
         this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
