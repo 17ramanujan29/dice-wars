@@ -1,5 +1,6 @@
 import { GAME_CONFIG, RENDER_CONFIG, UI_CONFIG } from "../config/index.js";
 import { Player } from "../models/Player.js";
+import { Territory } from "../models/Territory.js";
 import { MapGenerator } from "./MapGenerator.js";
 import { getValidNeighbors } from "../utils/hexUtils.js";
 
@@ -35,16 +36,36 @@ export class GameController {
         ),
     );
 
-    const generator = new MapGenerator();
-    const mapData = generator.generate(setup.terr);
+    // MapGeneratorの静的メソッドを使用
+    const mapData = MapGenerator.generate(setup.terr);
     this.hexGrid = mapData.grid;
     this.territories = mapData.territories;
+
+    // 隣接キャッシュを初期化
+    this._initAdjacencyCache();
 
     this.distributeTerritoriesAndDice(setup.dice);
     this.phase = "playing";
     this.currentPlayerIndex = 0;
     this.selectedTerritoryId = null;
     this.notifyStateChange();
+  }
+
+  /**
+   * 隣接キャッシュを初期化
+   */
+  _initAdjacencyCache() {
+    this._adjacencyCache = new Map();
+    for (let i = 0; i < this.territories.length; i++) {
+      for (let j = i + 1; j < this.territories.length; j++) {
+        const t1 = this.territories[i];
+        const t2 = this.territories[j];
+        const key = `${t1.id}-${t2.id}`;
+        const result = this.areAdjacent(t1, t2);
+        this._adjacencyCache.set(key, result);
+        this._adjacencyCache.set(`${t2.id}-${t1.id}`, result);
+      }
+    }
   }
 
   distributeTerritoriesAndDice(dicePerPlayer) {
@@ -56,8 +77,10 @@ export class GameController {
 
     this.players.forEach((p) => {
       const owned = this.getOwnedTerritories(p.id);
+      // bonusMapアクセスにフォールバックを追加
+      const bonusMapForPlayers = GAME_CONFIG.bonusMap[this.players.length] || [];
       const bonus = this.rules.latterBonusDice
-        ? GAME_CONFIG.bonusMap[this.players.length][p.id]
+        ? (bonusMapForPlayers[p.id] || 0)
         : 0;
       let pool =
         dicePerPlayer + bonus - owned.length * GAME_CONFIG.minDicePerTerritory;
@@ -148,7 +171,14 @@ export class GameController {
       source.dice = Math.max(1, Math.ceil(source.dice / 2));
     }
 
-    if (this.onBattleEnd) this.onBattleEnd(atkRoll, defRoll, resultType);
+    // onBattleEndをasync対応 - 非同期コールバックでも動作するように
+    if (this.onBattleEnd) {
+      const callback = this.onBattleEnd;
+      const params = [atkRoll, defRoll, resultType];
+      Promise.resolve(callback(...params)).catch(err => {
+        console.error('Battle end callback error:', err);
+      });
+    }
 
     setTimeout(() => {
       this.phase = "playing";
@@ -242,16 +272,14 @@ export class GameController {
       while (queue.length > 0) {
         const curr = queue.shift();
         count++;
-        terrs
-          .filter(
-            (other) =>
-              !localVisited.has(other.id) && this.areAdjacent(curr, other),
-          )
-          .forEach((other) => {
+        // 隣接チェックにキャッシュを使用（areAdjacentメソッド経由）
+        for (const other of terrs) {
+          if (!localVisited.has(other.id) && this.areAdjacent(curr, other)) {
             localVisited.add(other.id);
             visited.add(other.id);
             queue.push(other);
-          });
+          }
+        }
       }
       if (count > maxConnected) maxConnected = count;
     });
@@ -262,16 +290,17 @@ export class GameController {
     if (this.onStateChange) this.onStateChange(this);
   }
 
+  /**
+   * 状態変更時に隣接キャッシュをクリア
+   */
+  _onStateChange() {
+    this._clearAdjacencyCache();
+  }
+
   createSnapshot() {
     return {
-      players: this.players.map((player) => ({ ...player })),
-      territories: this.territories.map((territory) => ({
-        id: territory.id,
-        hexes: territory.hexes.map((hex) => ({ ...hex })),
-        centerHex: { ...territory.centerHex },
-        owner: territory.owner,
-        dice: territory.dice,
-      })),
+      players: this.players.map((player) => player.serialize()),
+      territories: this.territories.map((territory) => territory.serialize()),
       hexGrid: this.hexGrid.map((column) =>
         column.map((hex) => (hex ? { ...hex } : null)),
       ),
@@ -284,8 +313,8 @@ export class GameController {
   }
 
   applySnapshot(snapshot) {
-    this.players = snapshot.players || [];
-    this.territories = snapshot.territories || [];
+    this.players = (snapshot.players || []).map(p => Player.deserialize(p));
+    this.territories = (snapshot.territories || []).map(t => Territory.deserialize(t));
     this.hexGrid = snapshot.hexGrid || [];
     this.currentPlayerIndex = snapshot.currentPlayerIndex ?? 0;
     this.selectedTerritoryId = snapshot.selectedTerritoryId ?? null;
@@ -296,6 +325,8 @@ export class GameController {
         ? null
         : this.players.find((player) => player.id === snapshot.winnerId) ||
           null;
+    // 隣接キャッシュを再構築
+    this._initAdjacencyCache();
     this.notifyStateChange();
   }
 }

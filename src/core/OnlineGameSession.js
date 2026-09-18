@@ -138,12 +138,16 @@ export class OnlineGameSession {
       this.players = message.players;
       this.rules = message.rules;
       this.emitLobby();
-    } else if (message.type === "game-start" || message.type === "state-sync") {
+    } else if (message.type === "game-start") {
       if (message.type === "game-start") {
         this.localPlayerId = message.playerIds[this.network.peer.id];
       }
-      this.game.applySnapshot(message.snapshot);
+      // UIをゲームモードに切り替えてからスナップショットを適用
+      // これによりonStateChangeのコールバック時にUIが正しく表示される
       if (message.type === "game-start") this.onGameStart?.(this.game);
+      this.game.applySnapshot(message.snapshot);
+    } else if (message.type === "state-sync") {
+      this.game.applySnapshot(message.snapshot);
     } else if (message.type === "battle-start") {
       this.onBattleStart?.(message);
     } else if (message.type === "battle-end") {
