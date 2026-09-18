@@ -35,6 +35,31 @@ export class UIManager {
   }
 
   /**
+   * ルールUIを更新（チェックボックス/入力欄の表示を rules に合わせ、同期処理を実行）
+   */
+  updateRulesUI(rules) {
+    if (!rules) {
+      this.rules = {};
+      this.greatPowerRuleCb.checked = false;
+      this.smallCountryRuleCb.checked = false;
+      this.latterBonusDiceCb.checked = false;
+      this.greatPowerThresholdInput.value = "";
+      this.smallCountryThresholdInput.value = "";
+      this.syncRuleToggleInput(this.greatPowerRuleCb, this.greatPowerThresholdInput);
+      this.syncRuleToggleInput(this.smallCountryRuleCb, this.smallCountryThresholdInput);
+      return;
+    }
+    this.rules = { ...rules };
+    this.greatPowerRuleCb.checked = rules.greatPower ?? false;
+    this.smallCountryRuleCb.checked = rules.smallCountryBonus ?? false;
+    this.latterBonusDiceCb.checked = rules.latterBonusDice ?? false;
+    this.greatPowerThresholdInput.value = rules.greatPowerThreshold ?? "";
+    this.smallCountryThresholdInput.value = rules.smallCountryThreshold ?? "";
+    this.syncRuleToggleInput(this.greatPowerRuleCb, this.greatPowerThresholdInput);
+    this.syncRuleToggleInput(this.smallCountryRuleCb, this.smallCountryThresholdInput);
+  }
+
+  /**
    * 現在のルールを取得
    * @returns {Object}
    */
@@ -314,24 +339,6 @@ export class UIManager {
     document.getElementById("start-online-btn").title =
       lobby.players.length >= 2 ? "" : "参加者が2人以上必要です";
 
-    // ホストが設定したルールをUIに反映（参加者側で設定確認画面を開いたときに表示される）
-    if (this.rules) {
-      if (this.rules.greatPower !== undefined) {
-        this.greatPowerRuleCb.checked = this.rules.greatPower;
-      }
-      if (this.rules.smallCountryBonus !== undefined) {
-        this.smallCountryRuleCb.checked = this.rules.smallCountryBonus;
-      }
-      if (this.rules.greatPowerThreshold !== undefined) {
-        this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
-      }
-      if (this.rules.smallCountryThreshold !== undefined) {
-        this.smallCountryThresholdInput.value = this.rules.smallCountryThreshold;
-      }
-      // ルールUIの同期を更新
-      this.syncRuleToggleInput(this.greatPowerRuleCb, this.greatPowerThresholdInput);
-      this.syncRuleToggleInput(this.smallCountryRuleCb, this.smallCountryThresholdInput);
-    }
   }
 
   showOnlineError(message) {

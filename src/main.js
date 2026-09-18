@@ -77,14 +77,18 @@ function startLocalGame(playerCount) {
   renderer.start();
 }
 
+  /**
+/**
 /**
  * オンラインゲームを開始
  */
 function startOnlineGame() {
+  if (renderer.isRunning) return;
   currentMode = "online";
   ui.showInGameUI();
   renderer.start();
 }
+
 
 /**
  * ゲームの状態変化ハンドラ
