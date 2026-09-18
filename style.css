@@ -15,6 +15,7 @@ body {
   position: relative;
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -29,6 +30,9 @@ canvas {
   height: 100%;
   cursor: pointer;
   touch-action: none;
+}
+#ui-layer > :first-child {
+  position: relative;
 }
 #ui-layer {
   position: absolute;
@@ -50,6 +54,10 @@ canvas {
   margin: 1rem;
   border: 1px solid rgba(255, 255, 255, 0.1);
 }
+#turn-info,
+#player-stats {
+  overflow-wrap: anywhere;
+}
 #start-screen {
   position: absolute;
   top: 0;
@@ -63,6 +71,12 @@ canvas {
   justify-content: center;
   z-index: 50;
   pointer-events: auto;
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: max(1rem, env(safe-area-inset-top))
+    max(1rem, env(safe-area-inset-right))
+    max(1rem, env(safe-area-inset-bottom))
+    max(1rem, env(safe-area-inset-left));
 }
 .start-panel {
   background: rgba(31, 41, 55, 0.96);
@@ -72,6 +86,7 @@ canvas {
   border: 1px solid rgba(255, 255, 255, 0.12);
   max-width: 28rem;
   width: min(90vw, 28rem);
+  box-sizing: border-box;
   text-align: center;
 }
 #online-player-list li {
@@ -94,7 +109,7 @@ canvas {
   left: 50%;
   transform: translate(-50%, -50%);
   background: rgba(30, 40, 50, 0.95);
-  padding: 2rem;
+  padding: clamp(1rem, 5vw, 2rem);
   border-radius: 1rem;
   box-shadow: 0 10px 25px rgba(0, 0, 0, 0.8);
   border: 2px solid #f1c40f;
@@ -102,7 +117,8 @@ canvas {
   z-index: 40;
   text-align: center;
   pointer-events: none;
-  min-width: 300px;
+  width: min(34rem, calc(100vw - 2rem));
+  box-sizing: border-box;
 }
 .dice-roll-anim {
   animation: shake 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97) both;
@@ -145,4 +161,178 @@ button:active {
 .end-turn-disabled:hover {
   transform: none;
   box-shadow: none;
+}
+
+/* Keep controls usable when the canvas and viewport become narrow. */
+@media (max-width: 720px) {
+  #ui-layer > :first-child {
+    min-height: 0;
+  }
+
+  #ui-layer > :first-child > #canvas-container {
+    min-height: 0;
+  }
+
+  #ui-layer > :first-child > :last-child {
+    position: absolute;
+    top: 0;
+    right: 0;
+    width: min(18rem, 54vw);
+    max-height: min(45vh, 22rem);
+    box-sizing: border-box;
+    align-items: stretch;
+    padding: 0.35rem;
+    overflow-y: auto;
+  }
+
+  #ui-layer > :first-child > :last-child .ui-panel {
+    min-width: 0;
+    margin: 0.2rem;
+    padding: 0.55rem;
+    font-size: 0.85rem;
+  }
+
+  #turn-info {
+    font-size: 1rem;
+  }
+
+  #ui-layer > :last-child {
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    padding: 0.5rem;
+    padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+  }
+
+  #ui-layer > :last-child button {
+    flex: 1 1 8rem;
+    min-height: 2.75rem;
+    margin: 0;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.95rem;
+  }
+
+  #start-screen {
+    justify-content: flex-start;
+    padding-top: max(1.5rem, env(safe-area-inset-top));
+    padding-bottom: max(1.5rem, env(safe-area-inset-bottom));
+  }
+
+  #start-screen > h1 {
+    margin: 0.5rem 0 0.75rem;
+    font-size: clamp(2.5rem, 15vw, 4rem);
+    line-height: 1;
+  }
+
+  #start-screen > p {
+    margin: 0 0 1.25rem;
+    font-size: 0.95rem;
+    text-align: center;
+  }
+
+  .start-panel {
+    width: min(100%, 28rem);
+    padding: 1.25rem;
+  }
+
+  .start-panel h2 {
+    font-size: 1.35rem;
+  }
+
+  #mode-selection > div,
+  #online-setup > .flex,
+  #online-lobby > .flex,
+  #local-setup > .flex {
+    flex-wrap: wrap;
+  }
+
+  #mode-selection button,
+  #online-setup > .flex button,
+  #online-lobby > .flex button {
+    flex: 1 1 9rem;
+    min-height: 2.75rem;
+  }
+
+  #battle-modal .flex {
+    gap: clamp(0.6rem, 4vw, 2rem);
+  }
+
+  #battle-modal .text-5xl {
+    font-size: 2.5rem;
+  }
+
+  #battle-modal .text-xl {
+    font-size: 1rem;
+    overflow-wrap: anywhere;
+  }
+
+  #room-error-modal > div,
+  #settings-modal > div,
+  #quit-modal > div {
+    width: calc(100% - 2rem);
+    max-height: calc(100dvh - 2rem);
+    overflow-y: auto;
+    box-sizing: border-box;
+  }
+
+  #settings-modal > div {
+    padding: 1.25rem;
+  }
+
+  #settings-modal .flex.items-center.justify-between {
+    gap: 0.75rem;
+  }
+
+  #settings-modal .text-sm {
+    gap: 0.5rem;
+    flex-wrap: wrap;
+  }
+}
+
+@media (max-width: 420px) {
+  #ui-layer > :first-child > :last-child {
+    width: min(15rem, 62vw);
+  }
+
+  #ui-layer > :first-child > :last-child .ui-panel {
+    font-size: 0.75rem;
+  }
+
+  #player-stats > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 0.15rem;
+  }
+
+  #start-screen > h1 {
+    font-size: 2.5rem;
+  }
+
+  .start-panel {
+    padding: 1rem;
+  }
+
+  #battle-modal {
+    width: calc(100vw - 1rem);
+    padding: 0.85rem;
+  }
+
+  #battle-modal .text-3xl {
+    font-size: 1.5rem;
+  }
+}
+
+@media (max-width: 720px) and (orientation: portrait) {
+  #ui-layer > :first-child > :last-child {
+    right: 0.5rem;
+    width: calc(100% - 1rem);
+    max-height: min(40vh, 22rem);
+  }
+
+  #player-stats > div {
+    align-items: center;
+    flex-direction: row;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
 }
