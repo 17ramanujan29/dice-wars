@@ -22,6 +22,8 @@ export class UIManager {
     this.smallCountryThresholdInput = document.getElementById("small-country-threshold");
     this.latterBonusDiceCb = document.getElementById("latter-handicap-rule");
     this.eightDiceAdjacentLimitCb = document.getElementById("eight-dice-adjacent-limit-rule");
+    this.eightDiceCountLimitCb = document.getElementById("eight-dice-count-limit-rule");
+    this.eightDiceCountLimitInput = document.getElementById("eight-dice-count-limit");
 
     // 現在のルール設定を保持（オンライン時にホストから受信した設定を使う）
     this.rules = {};
@@ -51,7 +53,7 @@ export class UIManager {
   setSettingsEditable(editable, checkRules = true) {
     document
       .querySelectorAll(
-        ".rule-toggle, #great-power-threshold, #small-country-threshold, #latter-handicap-rule, label",
+        ".rule-toggle, #great-power-threshold, #small-country-threshold, #eight-dice-count-limit, #latter-handicap-rule, label",
       )
       .forEach((element) => {
         element.classList.toggle("pointer-events-none", !editable);
@@ -66,10 +68,13 @@ export class UIManager {
       this.smallCountryThresholdInput.disabled =
         !editable || !this.smallCountryRuleCb.checked;
       this.latterBonusDiceCb.disabled = !editable;
+      this.eightDiceCountLimitInput.disabled =
+        !editable || !this.eightDiceCountLimitCb.checked;
     } else {
       this.greatPowerThresholdInput.disabled = !editable;
       this.smallCountryThresholdInput.disabled = !editable;
       this.latterBonusDiceCb.disabled = !editable;
+      this.eightDiceCountLimitInput.disabled = !editable;
     }
   }
 
@@ -92,11 +97,17 @@ export class UIManager {
       if (this.rules.eightDiceAdjacentLimit !== undefined) {
         this.eightDiceAdjacentLimitCb.checked = this.rules.eightDiceAdjacentLimit;
       }
+      if (this.rules.eightDiceCountLimit !== undefined) {
+        this.eightDiceCountLimitCb.checked = this.rules.eightDiceCountLimit;
+      }
       if (this.rules.greatPowerThreshold !== undefined) {
         this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
       }
       if (this.rules.smallCountryThreshold !== undefined) {
         this.smallCountryThresholdInput.value = this.rules.smallCountryThreshold;
+      }
+      if (this.rules.eightDiceCountLimitValue !== undefined) {
+        this.eightDiceCountLimitInput.value = this.rules.eightDiceCountLimitValue;
       }
     }
     
@@ -288,11 +299,17 @@ export class UIManager {
       if (this.rules.eightDiceAdjacentLimit !== undefined) {
         this.eightDiceAdjacentLimitCb.checked = this.rules.eightDiceAdjacentLimit;
       }
+      if (this.rules.eightDiceCountLimit !== undefined) {
+        this.eightDiceCountLimitCb.checked = this.rules.eightDiceCountLimit;
+      }
       if (this.rules.greatPowerThreshold !== undefined) {
         this.greatPowerThresholdInput.value = this.rules.greatPowerThreshold;
       }
       if (this.rules.smallCountryThreshold !== undefined) {
         this.smallCountryThresholdInput.value = this.rules.smallCountryThreshold;
+      }
+      if (this.rules.eightDiceCountLimitValue !== undefined) {
+        this.eightDiceCountLimitInput.value = this.rules.eightDiceCountLimitValue;
       }
       // ルールUIの同期を更新
       this.syncRuleToggleInput(this.greatPowerRuleCb, this.greatPowerThresholdInput);

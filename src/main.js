@@ -33,6 +33,10 @@ function readRules() {
     document.getElementById("small-country-threshold").value,
     10,
   );
+  rules.eightDiceCountLimitValue = parseInt(
+    document.getElementById("eight-dice-count-limit").value,
+    10,
+  );
   return rules;
 }
 
@@ -337,12 +341,19 @@ function setupEventListeners() {
 function setupRuleSync() {
   ui.syncRuleToggleInput(ui.greatPowerRuleCb, ui.greatPowerThresholdInput);
   ui.syncRuleToggleInput(ui.smallCountryRuleCb, ui.smallCountryThresholdInput);
+  ui.syncRuleToggleInput(
+    ui.eightDiceCountLimitCb,
+    ui.eightDiceCountLimitInput,
+  );
   
   ui.greatPowerRuleCb.addEventListener("change", (event) =>
     ui.syncRuleToggleInput(event.target, ui.greatPowerThresholdInput),
   );
   ui.smallCountryRuleCb.addEventListener("change", (event) =>
     ui.syncRuleToggleInput(event.target, ui.smallCountryThresholdInput),
+  );
+  ui.eightDiceCountLimitCb.addEventListener("change", (event) =>
+    ui.syncRuleToggleInput(event.target, ui.eightDiceCountLimitInput),
   );
 }
 

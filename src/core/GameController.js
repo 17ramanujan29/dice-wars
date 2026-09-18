@@ -17,6 +17,7 @@ export class GameController {
       latterBonusDice: false,
       smallCountryBonus: false,
       eightDiceAdjacentLimit: false,
+      eightDiceCountLimit: false,
     };
     this.onStateChange = null;
     this.onBattleStart = null;
@@ -93,7 +94,27 @@ export class GameController {
         pool--;
       }
       this.enforceEightDiceAdjacentLimit(p.id);
+      this.enforceEightDiceCountLimit(p.id);
     });
+  }
+
+  enforceEightDiceCountLimit(pId) {
+    if (!this.rules.eightDiceCountLimit) return;
+
+    const limit = Number.isInteger(this.rules.eightDiceCountLimitValue)
+      ? this.rules.eightDiceCountLimitValue
+      : 1;
+    const eightDiceTerritories = this.getOwnedTerritories(pId).filter(
+      (territory) => territory.dice >= GAME_CONFIG.maxDicePerTerritory,
+    );
+    let excess = eightDiceTerritories.length - limit;
+
+    while (excess > 0) {
+      const index = Math.floor(Math.random() * eightDiceTerritories.length);
+      eightDiceTerritories[index].dice--;
+      eightDiceTerritories.splice(index, 1);
+      excess--;
+    }
   }
 
   enforceEightDiceAdjacentLimit(pId) {
@@ -266,6 +287,7 @@ export class GameController {
       count--;
     }
     this.enforceEightDiceAdjacentLimit(pId);
+    this.enforceEightDiceCountLimit(pId);
   }
 
   checkWinCondition() {
