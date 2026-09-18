@@ -34,23 +34,42 @@ export class Renderer {
 
     fitMapToScreen() {
         const padding = RENDER_CONFIG.mapPadding;
+        this.camera.scale = 1;
 
         let availableWidth = Math.max(this.canvas.width - padding * 2, RENDER_CONFIG.minAvailableWidth);
         let availableHeight = Math.max(this.canvas.height - padding * 2, RENDER_CONFIG.minAvailableWidth);
 
         const widthScale = availableWidth / (GAME_CONFIG.gridWidth * 1.5 + 0.5);
         const heightScale = availableHeight / (GAME_CONFIG.gridHeight * Math.sqrt(3) * RENDER_CONFIG.yScale);
-        
+
         this.hexSize = Math.max(RENDER_CONFIG.minHexSize, Math.min(widthScale, heightScale));
-        
+
         const metrics = getHexMetrics(this.hexSize);
         const mapWidth = GAME_CONFIG.gridWidth * metrics.horizDist + this.hexSize * 0.5;
         const mapHeight = (GAME_CONFIG.gridHeight * metrics.vertDist + metrics.vertDist * 0.5) * RENDER_CONFIG.yScale;
-        
+
         this.camera.x = (this.canvas.width - mapWidth) / 2 + padding;
         this.camera.y = (this.canvas.height - mapHeight) / 2 + padding;
 
         this.canDrag = (mapWidth > this.canvas.width) || (mapHeight > this.canvas.height);
+    }
+
+    clampScale(scale) {
+        return Math.min(Math.max(scale, RENDER_CONFIG.minScale), RENDER_CONFIG.maxScale);
+    }
+
+    setZoom(nextScale, anchorX = this.canvas.width / 2, anchorY = this.canvas.height / 2) {
+        const prevScale = this.camera.scale || 1;
+        const scale = this.clampScale(nextScale);
+
+        if (scale === prevScale) return;
+
+        const worldX = (anchorX - this.camera.x) / prevScale;
+        const worldY = (anchorY - this.camera.y) / (prevScale * RENDER_CONFIG.yScale);
+
+        this.camera.scale = scale;
+        this.camera.x = anchorX - worldX * scale;
+        this.camera.y = anchorY - worldY * scale * RENDER_CONFIG.yScale;
     }
 
     clear() {
@@ -60,12 +79,12 @@ export class Renderer {
     render() {
         if (this.game.phase === 'start') return;
         this.clear();
-        
+
         // 1. マップ床面描画（Y軸スケーリング）
         this.ctx.save();
         this.ctx.translate(this.camera.x, this.camera.y);
-        this.ctx.scale(1, RENDER_CONFIG.yScale);
-        
+        this.ctx.scale(this.camera.scale, this.camera.scale * RENDER_CONFIG.yScale);
+
         this.game.territories.forEach(t => {
             const baseColor = t.id === this.game.selectedTerritoryId ? '#323232' : this.game.players[t.owner].color;
             t.hexes.forEach(h => {
@@ -73,14 +92,15 @@ export class Renderer {
                 this.drawHexagon(p.x, p.y, this.hexSize, baseColor, null, 0);
             });
         });
-        
+
         this.drawBorders();
         this.drawHighlights();
         this.ctx.restore();
-        
+
         // 2. 立体ダイススタック描画
         this.ctx.save();
         this.ctx.translate(this.camera.x, this.camera.y);
+        this.ctx.scale(this.camera.scale, this.camera.scale);
         this.game.territories.forEach(t => {
             const n = getHexCenter(t.centerHex.c, t.centerHex.r, this.hexSize);
             this.drawDiceStack(n.x, n.y * RENDER_CONFIG.yScale, t.dice, this.game.players[t.owner].color);

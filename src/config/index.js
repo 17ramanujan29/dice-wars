@@ -51,6 +51,11 @@ export const RENDER_CONFIG = {
   mapPadding: 20,
   minAvailableWidth: 100,
 
+  // ズーム関連
+  minScale: 0.6,
+  maxScale: 2.5,
+  wheelZoomFactor: 1.12,
+
   // 立体ダイス描画パラメータ
   diceDoubleColumnThreshold: 5, // 5個以上で2列にスタック
   diceColumnMaxCount: 4, // 1列あたりの最大スタック数
