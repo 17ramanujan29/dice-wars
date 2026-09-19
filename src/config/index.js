@@ -29,9 +29,9 @@ export const GAME_CONFIG = {
 
   // プレイヤー人数ごとの初期領土・総ダイス数設定
   playerSetupMap: {
-    2: { terr: 28, dice: 42 },
-    3: { terr: 27, dice: 30 },
-    4: { terr: 28, dice: 22 },
+    2: { terr: 18, dice: 32 },
+    3: { terr: 27, dice: 32 },
+    4: { terr: 36, dice: 32 },
   },
 
   // プレイヤー人数ごとの後手ボーナスダイス配置
