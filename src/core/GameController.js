@@ -116,14 +116,20 @@ export class GameController {
               neighboringTerritory.owner !== player.id &&
               this.areAdjacent(territory, neighboringTerritory)
             ) {
-              return difference + neighboringTerritory.dice - territory.dice;
+              const diceDifference =
+                neighboringTerritory.dice - territory.dice;
+              const adjustedDifference =
+                diceDifference < 0
+                  ? Math.ceil((diceDifference * 2) / 3)
+                  : Math.floor((diceDifference * 2) / 3);
+              return difference + adjustedDifference;
             }
             return difference;
           }, 0)
         );
       }, 0);
 
-      let bonus = Math.max(0, Math.ceil((diceDifference * 2) / 3));
+      let bonus = Math.max(Math.ceil((playerIndex * 4) / 3), diceDifference); 
       while (bonus > 0) {
         const valid = owned.filter(
           (territory) => territory.dice < GAME_CONFIG.maxDicePerTerritory,
