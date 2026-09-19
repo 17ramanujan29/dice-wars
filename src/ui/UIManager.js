@@ -21,6 +21,7 @@ export class UIManager {
     this.smallCountryRuleCb = document.getElementById("small-country-rule");
     this.smallCountryThresholdInput = document.getElementById("small-country-threshold");
     this.latterBonusDiceCb = document.getElementById("latter-handicap-rule");
+    this.latterBonusDice2Cb = document.getElementById("latter-handicap-rule-2");
     this.eightDiceAdjacentLimitCb = document.getElementById("eight-dice-adjacent-limit-rule");
     this.eightDiceCountLimitCb = document.getElementById("eight-dice-count-limit-rule");
     this.eightDiceCountLimitInput = document.getElementById("eight-dice-count-limit");
@@ -68,12 +69,14 @@ export class UIManager {
       this.smallCountryThresholdInput.disabled =
         !editable || !this.smallCountryRuleCb.checked;
       this.latterBonusDiceCb.disabled = !editable;
+      this.latterBonusDice2Cb.disabled = !editable;
       this.eightDiceCountLimitInput.disabled =
         !editable || !this.eightDiceCountLimitCb.checked;
     } else {
       this.greatPowerThresholdInput.disabled = !editable;
       this.smallCountryThresholdInput.disabled = !editable;
       this.latterBonusDiceCb.disabled = !editable;
+      this.latterBonusDice2Cb.disabled = !editable;
       this.eightDiceCountLimitInput.disabled = !editable;
     }
   }
@@ -93,6 +96,9 @@ export class UIManager {
       }
       if (this.rules.latterBonusDice !== undefined) {
         this.latterBonusDiceCb.checked = this.rules.latterBonusDice;
+      }
+      if (this.rules.latterBonusDice2 !== undefined) {
+        this.latterBonusDice2Cb.checked = this.rules.latterBonusDice2;
       }
       if (this.rules.eightDiceAdjacentLimit !== undefined) {
         this.eightDiceAdjacentLimitCb.checked = this.rules.eightDiceAdjacentLimit;
@@ -299,6 +305,9 @@ export class UIManager {
       }
       if (this.rules.latterBonusDice !== undefined) {
         this.latterBonusDiceCb.checked = this.rules.latterBonusDice;
+      }
+      if (this.rules.latterBonusDice2 !== undefined) {
+        this.latterBonusDice2Cb.checked = this.rules.latterBonusDice2;
       }
       if (this.rules.eightDiceAdjacentLimit !== undefined) {
         this.eightDiceAdjacentLimitCb.checked = this.rules.eightDiceAdjacentLimit;

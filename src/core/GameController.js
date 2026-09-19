@@ -15,6 +15,7 @@ export class GameController {
     this.rules = {
       greatPower: false,
       latterBonusDice: false,
+      latterBonusDice2: false,
       smallCountryBonus: false,
       eightDiceAdjacentLimit: false,
       eightDiceCountLimit: false,
@@ -95,6 +96,42 @@ export class GameController {
       }
       this.enforceEightDiceAdjacentLimit(p.id);
       this.enforceEightDiceCountLimit(p.id);
+    });
+
+    this.applyLatterBonusDice2();
+  }
+
+  applyLatterBonusDice2() {
+    if (!this.rules.latterBonusDice2) return;
+
+    this.players.forEach((player, playerIndex) => {
+      if (playerIndex === 0) return;
+
+      const owned = this.getOwnedTerritories(player.id);
+      const diceDifference = owned.reduce((total, territory) => {
+        return (
+          total +
+          this.territories.reduce((difference, neighboringTerritory) => {
+            if (
+              neighboringTerritory.owner !== player.id &&
+              this.areAdjacent(territory, neighboringTerritory)
+            ) {
+              return difference + neighboringTerritory.dice - territory.dice;
+            }
+            return difference;
+          }, 0)
+        );
+      }, 0);
+
+      let bonus = Math.max(0, Math.ceil((diceDifference * 2) / 3));
+      while (bonus > 0) {
+        const valid = owned.filter(
+          (territory) => territory.dice < GAME_CONFIG.maxDicePerTerritory,
+        );
+        if (valid.length === 0) break;
+        valid[Math.floor(Math.random() * valid.length)].dice++;
+        bonus--;
+      }
     });
   }
 
