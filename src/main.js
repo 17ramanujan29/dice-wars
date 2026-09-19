@@ -280,6 +280,7 @@ function setupEventListeners() {
 
   // オンライン設定ボタン
   document.getElementById("online-settings-btn").addEventListener("click", () => {
+    ui.setRules(onlineSession.rules);
     ui.showSettingsModal(onlineSession.role === "host");
   });
 
@@ -331,6 +332,7 @@ function setupEventListeners() {
   document
     .getElementById("in-game-settings-btn")
     .addEventListener("click", () => {
+      ui.setRules(game.rules);
       ui.showSettingsModal(false);
     });
 }
