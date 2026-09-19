@@ -111,6 +111,10 @@ export class UIManager {
       }
     }
     
+    this.syncRuleToggleInput(
+      this.eightDiceCountLimitCb,
+      this.eightDiceCountLimitInput,
+    );
     this.setSettingsEditable(editable);
     this.settingsModalEl.classList.remove("hidden");
   }
@@ -332,7 +336,7 @@ export class UIManager {
     const isHost = lobby.role === "host";
     document.getElementById("online-player-count").innerText =
       `${lobby.players.length} / 4人`;
-    document.getElementById("online-settings-btn").disabled = !isHost;
+    document.getElementById("online-settings-btn").disabled = false;
     document.getElementById("start-online-btn").disabled =
       !isHost || lobby.players.length < 2;
     document.getElementById("start-online-btn").title =
