@@ -75,7 +75,7 @@ export class GameController {
     const unassigned = [...this.territories].sort(() => Math.random() - 0.5);
     unassigned.forEach((t, i) => {
       t.owner = i % this.players.length;
-      t.dice = GAME_CONFIG.minDicePerTerritory;
+      t.dice = GAME_CONFIG.initialMinDicePerTerritory;
     });
 
     this.players.forEach((p) => {
@@ -86,10 +86,12 @@ export class GameController {
         ? (bonusMapForPlayers[p.id] || 0)
         : 0;
       let pool =
-        dicePerPlayer + bonus - owned.length * GAME_CONFIG.minDicePerTerritory;
+        dicePerPlayer + bonus - owned.length * GAME_CONFIG.initialMinDicePerTerritory;
 
       while (pool > 0) {
-        const valid = owned.filter((t) => t.dice < GAME_CONFIG.initialMaxDice);
+        const valid = owned.filter(
+          (t) => t.dice < GAME_CONFIG.initialMaxDicePerTerritory,
+        );
         if (valid.length === 0) break;
         valid[Math.floor(Math.random() * valid.length)].dice++;
         pool--;
@@ -129,10 +131,10 @@ export class GameController {
         );
       }, 0);
 
-      let bonus = Math.max(Math.ceil((playerIndex * 4) / 3), diceDifference); 
+      let bonus = Math.max(Math.ceil((playerIndex * 4) / 3), diceDifference);
       while (bonus > 0) {
         const valid = owned.filter(
-          (territory) => territory.dice < GAME_CONFIG.maxDicePerTerritory,
+          (territory) => territory.dice < GAME_CONFIG.initialMaxDicePerTerritory,
         );
         if (valid.length === 0) break;
         valid[Math.floor(Math.random() * valid.length)].dice++;
