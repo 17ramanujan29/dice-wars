@@ -17,7 +17,9 @@ export const GAME_CONFIG = {
   diceSides: 6,
   minDicePerTerritory: 1,
   maxDicePerTerritory: 8,
-  initialMaxDice: 6,
+  initialMinDicePerTerritory: 2,
+  initialMaxDicePerTerritory: 5,
+  initialMaxDice: 5,
   minDiceToAttack: 1, // 攻撃を行うために最低限必要なダイス数
   reinforcementRatio: 2 / 3, // 増援計算比率 (2/3)
 
@@ -29,9 +31,9 @@ export const GAME_CONFIG = {
 
   // プレイヤー人数ごとの初期領土・総ダイス数設定
   playerSetupMap: {
-    2: { terr: 18, dice: 32 },
-    3: { terr: 27, dice: 32 },
-    4: { terr: 36, dice: 32 },
+    2: { terr: 18, dice: 30 },
+    3: { terr: 27, dice: 30 },
+    4: { terr: 36, dice: 30 },
   },
 
   // プレイヤー人数ごとの後手ボーナスダイス配置
